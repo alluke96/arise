@@ -8,19 +8,24 @@ Tarefas em ordem de dependência. Cada uma referencia os requisitos que satisfaz
 
 ## Fase 1 — Fundação e front com dados mockados
 
-- [ ] **1. Inicializar o projeto Expo**
+> **Status: 19 de 20 concluídas.** App navegável com dados mockados, sem API.
+> Expo SDK 57 · React 19.2.3 · RN 0.86.3. 51 testes de motor passando,
+> typecheck limpo, bundle Metro gerado com sucesso.
+> Pendente: tarefa 20 (auditoria de acessibilidade em aparelho real).
+
+- [x] **1. Inicializar o projeto Expo**
   - Expo SDK atual, TypeScript strict, Expo Router
   - Bundle ID e package com codinome neutro `app.hunter.system` — nunca "arise"
   - ESLint + Prettier + Vitest configurados
   - _Requisitos: base para todos_
 
-- [ ] **2. Tokens de design e tipografia**
+- [x] **2. Tokens de design e tipografia**
   - `src/ui/tokens.ts` com cores, espaçamento, tipografia, raios
   - Carregar Chakra Petch e Barlow via `expo-font`
   - Nenhum hex fora do arquivo de tokens
   - _Requisitos: design §5.2_
 
-- [ ] **3. Componentes assinatura da UI**
+- [x] **3. Componentes assinatura da UI**
   - `<SystemWindow>` com cantos chanfrados via clip-path, variantes default/highlight/alert
   - `<SystemText>`, `<StatBar>`, `<RankBadge>`, `<Wordmark>`
   - `<RadarChart>` em SVG
@@ -28,92 +33,92 @@ Tarefas em ordem de dependência. Cada uma referencia os requisitos que satisfaz
   - Respeitar `prefers-reduced-motion` em toda animação
   - _Requisitos: R5.1, design §5.1, §5.3_
 
-- [ ] **4. Tipos do domínio**
+- [x] **4. Tipos do domínio**
   - `src/core/types.ts` com Rank, Pattern, Attribute, UserProfile, Progression, Exercise, DailyQuest, QuestObjective, HealthScreening
   - _Requisitos: design §3_
 
-- [ ] **5. Motor — XP e níveis**
+- [x] **5. Motor — XP e níveis**
   - `calcXp`, `xpForLevel` (100 × N^1.45), `applyXp`
   - Teste: nível nunca decresce, em nenhuma entrada
   - _Requisitos: R6.2, R6.3, R6.4, R6.5_
 
-- [ ] **6. Motor — guardas de segurança** ⚠️
+- [x] **6. Motor — guardas de segurança** ⚠️
   - `clampWeeklyVolume`, `assertCanonicalAllowed`, `applyCautionMode`, `enforceDeload`, `dropPainfulPattern`
   - Cobertura 100% e um teste de tentativa de violação por guarda
   - Teste de propriedade: nenhum histórico aleatório produz aumento > 10%/semana
   - _Requisitos: R15 inteiro, R4.5, R4.8, R4.9, R2.5_
 
-- [ ] **7. Motor — escalonamento e prescrição**
+- [x] **7. Motor — escalonamento e prescrição**
   - `scaleObjective`, `progressionFactor`, `readinessFactor`
   - `generateDailyQuest` compondo 3–5 objetivos por padrão e rank
   - Toda saída passa pelos guardas da tarefa 6
   - _Requisitos: R4.1–R4.12_
 
-- [ ] **8. Motor — rank, atributos e triagem**
+- [x] **8. Motor — rank, atributos e triagem**
   - `initialRank`, `rankCriteria`, `evaluateBenchmark` para as faixas E→S
   - `deriveAttributes` com as fórmulas de FOR/AGI/VIT/PER/INT
   - `evaluateParq` retornando cleared / caution / blocked
   - `mifflinStJeor` e `tdee`
   - _Requisitos: R3.3–R3.6, R6.7–R6.12, R7.1–R7.8, R2.3–R2.6_
 
-- [ ] **9. Motor — penalidade, sequência e Dungeon Break**
+- [x] **9. Motor — penalidade, sequência e Dungeon Break**
   - Máquina de estados de `design.md` §4.4
   - Teste: nenhuma transição altera nível, rank, atributos ou histórico
   - _Requisitos: R8.1–R8.10, R9.1–R9.4_
 
-- [ ] **10. Repositórios: interface + implementação mock**
+- [x] **10. Repositórios: interface + implementação mock**
   - Interfaces `ExerciseRepository`, `QuestRepository`, `ProgressionRepository`, `ProfileRepository`
   - `MockRepository` em memória, tipado pelos tipos do domínio
   - Injeção única em `src/core/repositories/index.ts`
   - _Requisitos: design §6_
 
-- [ ] **11. Seed de dados para demonstração**
+- [x] **11. Seed de dados para demonstração**
   - 20 exercícios reais cobrindo as escadas de flexão, agachamento, core e aeróbico
   - Caçador de demonstração: Rank D, nível 14, sequência 23 dias, 14 sombras
   - A Missão Diária vem de `generateDailyQuest` sobre os mocks, **nunca escrita à mão**
   - _Requisitos: design §6_
 
-- [ ] **12. Stores Zustand**
+- [x] **12. Stores Zustand**
   - `useProfile`, `useProgression`, `useQuest`, `useSession`
   - Stores chamam motor e repositórios; nenhuma regra de negócio dentro do store
   - _Requisitos: design §1_
 
-- [ ] **13. Navegação e layout**
+- [x] **13. Navegação e layout**
   - Expo Router: grupo `(onboarding)`, grupo `(tabs)`, rotas soltas de sessão/penalidade/reavaliação/paywall
   - Tab bar com Status, Missão, Códice, Exército
   - _Requisitos: design §2_
 
-- [ ] **14. Telas de onboarding**
+- [x] **14. Telas de onboarding**
   - Despertar, Biometria, Triagem PAR-Q+, Baseline, Logística, Contrato
   - Validação de faixas e bloqueio de menores de 16
   - Modo Prudência acionado pela triagem
   - _Requisitos: R1.1–R1.12, R2.1–R2.11, R3.1–R3.7_
 
-- [ ] **15. Tela de Status**
+- [x] **15. Tela de Status**
   - Janela de status, rank, nível, barra de XP, radar de atributos
   - Sequência e Pedras de Recuperação
   - Card da Missão Diária com objetivos e contagem regressiva
   - _Requisitos: R6.1, R6.6, R8.6_
 
-- [ ] **16. Telas de Missão e Execução**
+- [x] **16. Telas de Missão e Execução**
   - Detalhe da missão com objetivos e recompensa
   - Execução: contador, timer de descanso, seletor de RPE em faixas, checklist de forma
   - "Muito difícil" / "Muito fácil" sempre visíveis, regressão imediata sem confirmação
   - _Requisitos: R5.1–R5.11_
 
-- [ ] **17. Telas de Level Up e Zona de Penalidade**
+- [x] **17. Telas de Level Up e Zona de Penalidade**
   - Recompensa com +3 pontos de atributo e desbloqueio de sombra
   - Zona de Penalidade com 4 minutos em RPE 2–3 e restauração de sequência
   - Nenhuma linguagem de vergonha em qualquer estado de falha
   - _Requisitos: R6.5, R8.1–R8.5, R8.10_
 
-- [ ] **18. Telas de Códice e Exército de Sombras**
+- [x] **18. Telas de Códice e Exército de Sombras**
   - Códice com busca, filtros e a escada de progressão navegável
   - Exercícios sem par de ilustrações aparecem bloqueados
   - Grade de sombras com grau e benefício funcional
   - _Requisitos: R10.1–R10.5, R11.1–R11.9_
 
-- [ ] **19. Tela de Reavaliação de Rank**
+- [x] **19. Tela de Reavaliação de Rank**
   - Teste de benchmark guiado, resultado e promoção E→D
   - Recálculo da projeção até o Rank S com dados reais
   - _Requisitos: R7.1–R7.8_

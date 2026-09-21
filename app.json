@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Arise",
+    "slug": "hunter-system",
+    "scheme": "huntersystem",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0C0618",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0C0618"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.hunter.system"
+    },
+    "android": {
+      "package": "app.hunter.system",
+      "adaptiveIcon": {
+        "backgroundColor": "#0C0618",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": ["expo-router", "expo-font"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
