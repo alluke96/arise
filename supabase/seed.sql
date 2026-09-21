@@ -1,0 +1,14 @@
+-- Seed de desenvolvimento local (supabase db reset).
+-- Sem dado real de pessoa: o caçador de demonstração é fictício.
+--
+-- Requer um usuário em auth.users. Com a CLI:
+--   supabase db reset && supabase functions serve
+-- e crie o usuário pelo painel local antes de rodar este seed.
+
+-- Exemplo, mantido comentado para não quebrar um reset limpo:
+--
+-- insert into profiles (user_id, hunter_name, birth_year, gender, goal,
+--                       days_per_week, session_minutes, preferred_time,
+--                       location, updated_by_device)
+-- values ('00000000-0000-0000-0000-000000000001', 'ALLYSON', 1998, 'male',
+--         'fat_loss', 3, 20, '19:00', 'home', 'seed');

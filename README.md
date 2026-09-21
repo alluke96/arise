@@ -18,8 +18,9 @@ npm run android    # ou ios / web
 ```
 
 ```bash
-npm test           # motor de prescrição (51 testes)
+npm test           # motor + sincronização (80 testes)
 npm run typecheck
+npm run db:test    # sobe Postgres efêmero, aplica migrations, testa o RLS
 ```
 
 ## Estado atual
@@ -35,13 +36,37 @@ A Missão Diária das telas é **gerada pelo motor** sobre os mocks, nunca escri
 | Motor | TypeScript puro, sem React e sem I/O — 51 testes, incluindo testes de violação dos guardas de segurança |
 | Dados | Repositório em memória atrás de interface; a Fase 2 troca por SQLite sem tocar em UI nem motor |
 
+## Backend
+
+Fase A pronta: schema, políticas de segurança e o núcleo de sincronização.
+Ainda não plugado ao app — depende do SQLite local (Fase 2 do MVP), porque
+sincronizar um repositório em memória não significa nada.
+
+**A decisão que define o desenho: progressão é derivada, não sincronizada.**
+Sincronizar XP como número mutável gera conflito insolúvel — dois aparelhos
+treinam offline, ambos incrementam, e não existe merge correto entre "4.915 XP"
+e "5.100 XP". Somar duplica, escolher um perde treino. Então todo fato de treino
+é um evento imutável com id do cliente, e a progressão é um `fold` sobre eles:
+eventos não conflitam, eles se unem. Qualquer ordem de chegada converge para o
+mesmo estado — testado com 200 embaralhamentos.
+
+```
+supabase/
+├── migrations/   0001_schema.sql · 0002_rls.sql
+├── tests/        rls.test.sql  (acesso cruzado entre usuários)
+└── test.sh       npm run db:test
+src/core/sync/    events.ts · fold.ts · merge.ts
+```
+
 ## Documentação
 
 ```
 .kiro/
-├── steering/          product.md · tech.md · structure.md
-└── specs/arise-mvp/   requirements.md (EARS) · design.md · tasks.md
-docs/product-brief.md  pesquisa, decisões e justificativas
+├── steering/            product.md · tech.md · structure.md
+└── specs/
+    ├── arise-mvp/       requirements.md (EARS) · design.md · tasks.md
+    └── arise-backend/   requirements.md (EARS) · design.md · tasks.md
+docs/product-brief.md    pesquisa, decisões e justificativas
 ```
 
 ## A regra que governa o código

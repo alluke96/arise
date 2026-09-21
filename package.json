@@ -10,7 +10,8 @@
     "web": "expo start --web",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:test": "bash supabase/test.sh"
   },
   "dependencies": {
     "@expo-google-fonts/barlow": "^0.4.1",
