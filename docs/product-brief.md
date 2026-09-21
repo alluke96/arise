@@ -2,9 +2,9 @@
 
 > *"Você é o Jogador. Ninguém mais recebeu esse convite."*
 
-**Versão:** 0.1 (rascunho para revisão)
+**Versão:** 0.2 (decisões de escopo fechadas)
 **Data:** 21/09/2026
-**Status:** Aguardando validação do product owner
+**Status:** Escopo aprovado — pronto para implementação
 **Plataforma:** React Native (iOS + Android)
 **Mock visual:** [Arise — Mock MVP](https://claude.ai/artifact/HjUuwnQLCsoqQLsEWwYf6b) — 12 telas navegáveis (privado; precisa ser compartilhado para outras pessoas abrirem)
 
@@ -24,7 +24,7 @@
 10. [Programas de treino por Rank](#10-programas-de-treino-por-rank)
 11. [Exército de Sombras (conquistas)](#11-exército-de-sombras-conquistas)
 12. [Portais, Masmorras e Raides](#12-portais-masmorras-e-raides)
-13. [Nutrição e recuperação](#13-nutrição-e-recuperação-módulo-secundário)
+13. [Nutrição e recuperação — em breve](#13-nutrição-e-recuperação--em-breve)
 14. [Mapa de telas](#14-mapa-de-telas)
 15. [Direção de arte](#15-direção-de-arte)
 16. [Arquitetura técnica](#16-arquitetura-técnica)
@@ -33,10 +33,12 @@
 19. [Segurança do usuário (regras invioláveis)](#19-segurança-do-usuário-regras-invioláveis)
 20. [Questão jurídica: propriedade intelectual](#20-questão-jurídica-propriedade-intelectual-)
 21. [Escopo do MVP e roadmap](#21-escopo-do-mvp-e-roadmap)
-22. [Métricas de sucesso](#22-métricas-de-sucesso)
-23. [Riscos](#23-riscos)
-24. [Decisões pendentes](#24-decisões-pendentes-preciso-da-sua-resposta)
-25. [Fontes](#25-fontes-da-pesquisa)
+22. [Monetização](#22-monetização)
+23. [Internacionalização](#23-internacionalização)
+24. [Métricas de sucesso](#24-métricas-de-sucesso)
+25. [Riscos](#25-riscos)
+26. [Decisões fechadas](#26-decisões-fechadas)
+27. [Fontes](#27-fontes-da-pesquisa)
 
 ---
 
@@ -592,7 +594,25 @@ Cumpre duas funções: dá dramaticidade ao retorno **e** implementa a redução
 
 ## 9. Biblioteca de exercícios
 
-### 9.1 Escopo do MVP: ~80 exercícios
+### 9.0 Como o exercício é ensinado sem vídeo ⚠️
+
+Decisão fechada: **sem vídeo no MVP.** Isso corta o item mais caro do orçamento de conteúdo, mas cria um problema real de segurança: a §19 condiciona a progressão à qualidade de execução, e o atributo PER é calculado a partir dela. Um sedentário que nunca viu uma flexão não aprende a forma com texto corrido.
+
+O substituto, em ordem de custo:
+
+| Camada | O que é | Custo | MVP |
+|---|---|---|---|
+| **Cues de técnica** | 3 pontos-chave por exercício, sempre visíveis durante a série | Texto | ✅ Obrigatório |
+| **Erros comuns** | 2–3 erros, com a correção | Texto | ✅ Obrigatório |
+| **Par de ilustrações** | Posição inicial + posição final, traço simples, mesma linguagem visual do app | ~160 ilustrações (2 × 80) | ✅ Obrigatório para os padrões de carga |
+| **Silhueta animada** | Lottie/SVG de 2 quadros em loop, derivada das mesmas ilustrações | Baixo, reaproveita a arte | 🔶 v1.1 |
+| **Vídeo real** | Filmagem ou 3D | Alto | ❌ v1.2+ |
+
+**Regra mínima inegociável:** nenhum exercício dos padrões *empurrar, puxar, agachar, dobradiça de quadril e core* entra no app sem o par de ilustrações. Mobilidade e aeróbico podem ir só com cues. Sem isso, a triagem PAR-Q+ e os tetos de progressão perdem o efeito — o app estaria prescrevendo carga para um movimento que o usuário não sabe executar.
+
+Enquanto as ilustrações não existirem, o exercício fica **bloqueado no Códice**, não liberado com texto só.
+
+### 9.1 Escopo do MVP: 80 exercícios
 
 | Padrão | Qtd | Exemplos |
 |---|---|---|
@@ -713,21 +733,41 @@ Cada conquista é uma **sombra extraída**, com animação de `ARISE!` e um perk
 | **Raide de Guilda** | Desafio coletivo: meta somada do grupo (ex.: 100.000 passos em 7 dias) | 1 semana | Evento recorrente |
 | **Dungeon Break** | Protocolo de reentrada pós-pausa | 3 sessões | Automático após 3 dias parado |
 
-### Guildas (fase 2)
-Grupos de 3–10 pessoas. Feed de conclusões, metas coletivas, ranking interno. **Sem ranking global público** — comparação com estranhos desmotiva iniciantes, e a evidência favorece competição em grupos pequenos e afins.
+### Guildas (v1.2 — depende de backend)
+Grupos de 3–10 pessoas. Feed de conclusões, metas coletivas, ranking interno.
+
+**Decisão fechada: só guildas, sem ranking global público.** Comparação com estranhos desmotiva iniciantes, e a evidência favorece competição em grupos pequenos e afins.
+
+Guilda é estado compartilhado entre pessoas, então **não existe versão offline dela**. Como o v1.0 é offline (§21), guildas só chegam com o backend na v1.2. A Raide de Guilda na tabela acima segue a mesma data.
 
 ---
 
-## 13. Nutrição e recuperação (módulo secundário)
+## 13. Nutrição e recuperação — em breve
 
-**Desativado por padrão.** Ativável em Configurações, com aviso.
+**Decisão fechada: fora do MVP.** O módulo aparece no app como uma entrada bloqueada em Configurações:
+
+```
+[NUTRIÇÃO]
+Em breve…
+O Sistema ainda está calibrando este módulo.
+```
+
+Uma entrada visível e honestamente rotulada vale mais que ausência: comunica roadmap sem prometer data. **Não** coletar e-mail para "avisar quando sair" — isso vira obrigação.
+
+### O que fica no MVP mesmo assim
+
+Três itens de recuperação não dependem do módulo de nutrição e continuam dentro:
+
+- **Sono:** input manual ou via HealthKit/Health Connect → alimenta VIT e o fator de prontidão da missão do dia (§7.3). Sem ele o escalonamento perde uma variável.
+- **Hidratação:** meta simples de ~35 ml/kg, ajustada por sessão. Um toggle, não um diário.
+- **Dor muscular tardia (DOMS):** explicador na semana 1 + notificação no dia 2. A dor de 24–72h após as primeiras sessões é a principal causa de abandono precoce — isso é retenção, não nutrição, e é barato.
+
+### O que vem na v1.3
 
 - **Cálculo de GET** por Mifflin-St Jeor + fator de atividade *derivado dos dados reais* após 2 semanas.
 - Faixas sugeridas, **nunca** um número único: déficit máximo de 20% do GET; proteína 1,6–2,2 g/kg.
-- **Sem contador de calorias de alimentos no MVP.** Em vez disso: registro qualitativo ("comeu proteína? vegetais? água?") → alimenta INT.
-- **Hidratação:** meta simples, ~35 ml/kg, ajustada por sessão de treino.
-- **Sono:** input manual ou via HealthKit/Health Connect → alimenta VIT e o fator de prontidão da missão do dia.
-- **Dor muscular tardia (DOMS):** explicador educativo na semana 1 — a dor de 24–72h após as primeiras sessões é a principal causa de abandono precoce, e o app precisa antecipá-la ativamente com uma notificação no dia 2.
+- Registro **qualitativo** ("comeu proteína? vegetais? água?"), não contagem de calorias de alimentos.
+- Continua valendo a §19.8: opt-in, desligado por padrão, ocultável para sempre.
 
 ---
 
@@ -761,9 +801,16 @@ Onboarding (7 passos)
     └── ⚙️ Associação
           ├── Perfil e biometria
           ├── Reavaliação de Rank
-          ├── Notificações, unidades, tema
+          ├── Notificações, unidades, tema, idioma
+          ├── Tom do Sistema (frio ⇄ Modo Companheiro)
           ├── Saúde (PAR-Q+, lesões, integrações)
-          └── Privacidade e exportação de dados
+          ├── Assinatura (status, restaurar compra, gerenciar)
+          ├── Nutrição — em breve 🔒
+          └── Privacidade, backup e exportação de dados
+
+Telas fora das abas:
+├── Paywall (fim do teste de 3 dias) — §22
+└── Backup e restauração (troca de aparelho) — §22.4
 ```
 
 ---
@@ -969,44 +1016,176 @@ Mecânicas de jogo e ideias gerais **não são protegidas por direito autoral** 
 4. **Consultar um advogado de PI** antes do lançamento público. Não sou advogado; isto é análise de risco, não parecer jurídico.
 5. Caminho alternativo, se houver tração: buscar **licenciamento oficial** com a D&C Media. Existe precedente de apps de fitness licenciados (ex.: *Zombies, Run!* com parcerias).
 
-**Por ora, escrevi este documento usando "Arise" porque foi o nome que você pediu. A decisão final de nome precisa ser sua, com os riscos acima na mesa.**
+### Decisão fechada (provisória)
+
+**Mantemos "Arise" durante o desenvolvimento, com troca prevista antes do lançamento público.** É uma decisão defensável: o risco de PI só se materializa quando o app fica visível nas lojas, e adiar a escolha do nome não bloqueia nenhuma linha de código.
+
+O que isso exige na prática, para que a troca depois custe barato:
+
+1. **Nenhum identificador técnico carrega o nome.** Bundle ID, package name, nome do repositório, chaves de analytics e esquema de deep link usam um codinome neutro (sugestão: `app.hunter.system`). Trocar bundle ID depois do lançamento significa **perder o app e os assinantes** — é irreversível nas duas lojas.
+2. **O wordmark vive em um só lugar:** um componente `<Wordmark />` e uma chave de i18n `app.name`. Nada de "Arise" escrito à mão em tela, copy ou notificação.
+3. **Prazo:** o nome definitivo precisa estar decidido **antes do primeiro build de TestFlight/closed testing**, não antes do lançamento — a partir daí já há pessoas com o app instalado.
+
+Candidatos levantados e verificados: **UMBRAL** (global), **VULTO** e **LEVANTE** (pt-BR). O espaço de nomes descritivos — *Level Up, Leveling, GymLevels, Solo Hunter: Level Up* — já está saturado nas lojas, então um nome distintivo vale mais por ASO do que por proteção jurídica.
 
 ---
 
 ## 21. Escopo do MVP e roadmap
 
-### MVP (v1.0) — 10 a 14 semanas
+### MVP (v1.0) — 16 a 20 semanas
 
 | Incluído | Excluído |
 |---|---|
 | ✅ Onboarding completo + PAR-Q+ | ❌ Backend / contas |
-| ✅ Motor de prescrição adaptativa | ❌ Guildas e social |
+| ✅ Motor de prescrição adaptativa | ❌ Guildas e Raides de Guilda |
 | ✅ Missão Diária + execução | ❌ Push notifications remotas |
-| ✅ Ranks E → C (o resto vem depois) | ❌ Módulo de nutrição |
-| ✅ Nível, XP, atributos | ❌ Integração com wearables além de passos |
-| ✅ Zona de Penalidade + streaks | ❌ Monetização |
-| ✅ ~50 exercícios com vídeo | ❌ Portais e raides |
-| ✅ 15 sombras | ❌ Vozes/narração |
-| ✅ Notificações locais | ❌ Android TV / watch |
-| ✅ SQLite offline + exportação | ❌ i18n além de pt-BR |
-| ✅ Passos via HealthKit/Health Connect | |
+| ✅ **Ranks E → S (jornada completa)** | ❌ Módulo de nutrição (entra como "em breve") |
+| ✅ Nível, XP, atributos | ❌ Wearables além de passos |
+| ✅ Zona de Penalidade + streaks | ❌ **Vídeos** (ilustrações no lugar) |
+| ✅ **80 exercícios com par de ilustrações** | ❌ Ranking global público |
+| ✅ 40 sombras | ❌ Portais e Portal Vermelho |
+| ✅ Notificações locais | ❌ Vozes / narração |
+| ✅ SQLite offline + exportação + backup em nuvem | ❌ Apple Watch / Android TV |
+| ✅ Passos via HealthKit/Health Connect | ❌ Espanhol |
+| ✅ **Assinatura com 3 dias grátis** | |
+| ✅ **pt-BR + en-US** | |
+| ✅ **Tom do Sistema com Modo Companheiro** | |
 
-**Justificativa do corte em Rank C:** um usuário leva ~10 semanas para chegar lá. Construir Ranks B/A/S no MVP é gastar orçamento em conteúdo que ninguém verá antes de termos dados reais de retenção.
+**Por que o prazo subiu de 10–14 para 16–20 semanas.** Três decisões ampliaram o escopo e uma reduziu:
+
+| Decisão | Efeito |
+|---|---|
+| Ranks E→S em vez de E→C | +6 programas completos, +todos os benchmarks, +30 exercícios |
+| pt-BR + en-US | Praticamente dobra o conteúdo textual e exige revisão de tom nos dois idiomas |
+| Assinatura + teste de 3 dias | StoreKit 2 + Play Billing, paywall, restauração, estados de erro |
+| **Sem vídeo** | **−4 a 6 semanas** e a maior linha do orçamento de conteúdo |
+
+Sem o corte de vídeo, este escopo seria inviável. Com ele, fecha.
+
+**Risco assumido ao ir até o Rank S:** a mediana dos usuários leva 32+ semanas para chegar lá. Estamos construindo conteúdo que <5% verá no primeiro ano. A contrapartida é que a jornada completa fica visível desde o Contrato (§5, passo 7) e desde a loja — e essa promessa é o produto. É uma decisão de marketing, não de engenharia, e vale explicitá-la como tal.
 
 ### Roadmap
 
 | Fase | Entregas |
 |---|---|
-| **v1.1** | Ranks B, A, S · biblioteca completa (80 ex.) · Portais e Portal Vermelho · 40 sombras |
-| **v1.2** | Backend + contas + sync · Guildas · Raides coletivas · push |
-| **v1.3** | Módulo de nutrição e sono · integração com wearables · Apple Watch |
-| **v2.0** | Mudança de Classe (especializações) · planos gerados por IA · i18n (EN, ES) · monetização |
+| **v1.1** | Silhuetas animadas dos exercícios · Portais e Portal Vermelho · Masmorra Instantânea · ajuste de preço pós-dados |
+| **v1.2** | Backend + contas + sync · **Guildas e Raides de Guilda** · push remoto |
+| **v1.3** | Módulo de nutrição · sono avançado · wearables · Apple Watch |
+| **v2.0** | Mudança de Classe (especializações) · planos gerados por IA · espanhol · vídeo real |
 
-**Janela de mercado:** o filme sai no fim de 2026 / início de 2027 e a S3 em 2027–2028. O ideal é ter v1.1 pronta antes do filme.
+**Janela de mercado:** o filme sai no fim de 2026 / início de 2027 e a S3 em 2027–2028. Com 16–20 semanas, um início agora coloca a v1.0 na janela do filme — mas o nome definitivo (§20) precisa estar resolvido antes do primeiro TestFlight.
 
 ---
 
-## 22. Métricas de sucesso
+## 22. Monetização
+
+**Decisão fechada: 3 dias grátis, depois assinatura mensal ou anual.**
+
+### 22.1 O problema do dia 3 ⚠️
+
+Preciso registrar isto antes de detalhar a implementação, porque é o maior risco do modelo escolhido.
+
+O paywall cai exatamente no pior dia possível para um sedentário:
+
+- A **dor muscular tardia (DOMS) atinge o pico entre 24 e 72 horas** após as primeiras sessões (§13). No dia 3 o usuário está dolorido, ainda não colheu nenhum resultado visível, e é aí que o app pede o cartão.
+- O hábito não se formou. Com 3 dias ele tem, na melhor das hipóteses, **2 sessões concluídas** — abaixo do limiar mínimo de 2,5 sessões/semana da própria OMS.
+- Nossa métrica-chave é retenção D7 > 40% (§24). Um paywall em D3 corta a amostra antes de ela existir.
+
+**O que eu recomendo**, em ordem de preferência:
+
+| Opção | Mudança | Por quê |
+|---|---|---|
+| **A — gatilho por progresso** | O teste dura **3 missões concluídas**, não 3 dias | Alinha o paywall ao momento de maior valor percebido, não ao calendário. Quem treina rápido paga antes; quem trava não é punido por ter tido uma semana ruim |
+| **B — 7 dias** | Estender o teste | Cobre o pico de DOMS e entrega 3 sessões completas |
+| **C — 3 dias (como decidido)** | Manter | Converte mais cedo e qualifica melhor, ao custo de volume de topo de funil |
+
+**Vou implementar a opção C, como você decidiu.** Mas construo o gatilho como **configuração remota (um valor no código, um só lugar)** para que trocar 3 dias por 7 dias ou por 3 missões seja mudança de uma linha, não de arquitetura. Depois dos primeiros 500 usuários os dados decidem — não nós dois agora.
+
+### 22.2 Estrutura
+
+| Item | Definição |
+|---|---|
+| **Teste** | 3 dias, acesso total, sem função bloqueada |
+| **Cartão na entrada?** | **Não.** Teste sem cartão aumenta topo de funil; o custo é conversão menor, que é o trade-off certo num app de hábito |
+| **Planos** | Mensal e anual. **Anual pré-selecionado** no paywall, com o desconto explícito em % |
+| **Preço sugerido pt-BR** | R$ 19,90/mês · R$ 99,90/ano (58% off) |
+| **Preço sugerido en-US** | US$ 4,99/mês · US$ 29,99/ano |
+| **Depois do teste** | App inteiro bloqueado, **exceto**: histórico em leitura, exportação de dados e a tela de assinatura |
+| **Nunca bloquear** | Exportação dos próprios dados. Cobrar para a pessoa recuperar o que ela registrou é abusivo e provavelmente fere o CDC |
+
+Os preços são sugestão de partida, calibrados abaixo dos apps de fitness premium internacionais (que ficam em R$ 40–60/mês no Brasil) porque o público-alvo é jovem e o app ainda não tem prova social. **Revisar na v1.1 com dados reais de conversão.**
+
+### 22.3 Como isso funciona sem backend
+
+Assinatura e operação offline (§21) não são incompatíveis — mas exigem cuidado:
+
+- **StoreKit 2 (iOS)** e **Google Play Billing (Android)** gerenciam teste, cobrança, renovação e cancelamento. Nenhum servidor nosso é necessário.
+- O **direito de acesso é validado localmente** e **cacheado**. Regra: se a validação falhar por falta de rede, o app concede **72 horas de tolerância** antes de bloquear. Um assinante em avião, no metrô ou num parque sem sinal **nunca** pode perder o treino.
+- **Restaurar compras** é obrigatório e precisa estar visível sem login (§14).
+- Fraude via relógio do sistema: o fim do teste é gravado com timestamp assinado pela loja, não com `Date.now()`.
+
+### 22.4 O risco real do "pago + sem contas" ⚠️
+
+Este é o ponto onde as decisões #3 e #9 colidem de verdade, e a colisão é séria:
+
+> Sem contas, **o histórico de treino vive só no aparelho.** Um assinante que troca de celular, formata ou perde o aparelho perde 6 meses de progressão, rank e sombras. A assinatura é restaurada pela loja; **os dados, não.**
+
+Num app grátis isso é um incômodo. Num app pago é **reembolso, avaliação de 1 estrela e churn garantido** — e o usuário tem razão.
+
+**Mitigação obrigatória no v1.0** (não é opcional, dado que o app é pago):
+
+1. **Backup automático do arquivo SQLite** em iCloud (iOS) e Google Drive / Android Auto Backup. Nativo das duas plataformas, sem backend nosso, sem conta nossa.
+2. **Exportação e importação manual** de um arquivo `.arise.json`, na tela de Privacidade.
+3. **Aviso explícito no paywall**, em texto normal e não em letra miúda: *"Seus dados ficam no aparelho e são copiados para o iCloud/Google. Contas com sincronização chegam na v1.2."*
+
+Sem os três, eu não recomendaria cobrar antes do backend existir.
+
+### 22.5 Conformidade
+
+- **Apple e Google exigem** divulgar, antes da compra: duração do teste, preço, periodicidade e renovação automática. Tem que estar na própria tela do paywall, não só nos termos.
+- **CDC art. 49 (direito de arrependimento):** compra à distância dá **7 dias** para desistir. Como a cobrança passa pelas lojas, o fluxo de reembolso é delas — mas os termos precisam dizer isso em português claro.
+- **Sem dark patterns:** botão de cancelar visível, nada de "tem certeza?" em três telas, nada de contagem regressiva falsa no paywall.
+- A §19.8 continua valendo: **nenhuma mecânica de monetização pode usar vergonha corporal** como alavanca.
+
+---
+
+## 23. Internacionalização
+
+**Decisão fechada: pt-BR e en-US no lançamento.** Espanhol fica para a v2.0.
+
+### 23.1 O que realmente dobra
+
+Não é a interface — são os ativos de conteúdo:
+
+| Ativo | Volume | Dificuldade |
+|---|---|---|
+| Mensagens do Sistema | ~200 strings | **Alta** — é a voz do produto |
+| Exercícios (nome, 3 cues, 2–3 erros) | 80 × ~7 = ~560 strings | Média — vocabulário técnico |
+| Nomes temáticos dos exercícios | 80 | **Alta** — "Golpe Básico III" / "Basic Strike III" |
+| Nomes das 40 sombras | 40 | **Alta** — "Espadachim Carmesim" / "Crimson Blade" |
+| Artigos educativos | ~15 textos | Média |
+| Ranks, atributos, UI | ~300 strings | Baixa |
+
+**Regra: as mensagens do Sistema e os nomes temáticos não passam por tradução automática.** São a voz da marca; um "Você falhou na missão" mal traduzido destrói o tom frio e impessoal que a §2.8 define. Precisa de revisão humana bilíngue nos dois sentidos.
+
+### 23.2 O que não traduzimos nós mesmos ⚠️
+
+O **PAR-Q+ tem versões oficiais** em inglês (original) e **português brasileiro validado** por estudo de tradução e adaptação transcultural publicado (§3.6, fontes na §27).
+
+**Usar as duas versões oficiais, literalmente.** Traduzir o questionário por conta própria invalida o instrumento e transfere a responsabilidade clínica para nós.
+
+### 23.3 Implementação
+
+- **`i18next` + `expo-localization`**, idioma detectado do sistema e trocável em Configurações.
+- **Unidades independentes do idioma:** um brasileiro pode querer lb, um americano pode querer kg. Duas configurações separadas, nunca acopladas ao locale.
+- Formatação de número e data pelo `Intl` nativo — vírgula decimal em pt-BR, ponto em en-US.
+- **Chaves com namespace por domínio** (`quest.*`, `exercise.*`, `shadow.*`, `system.*`), para que a revisão de tom das mensagens do Sistema seja um arquivo isolado.
+- **Duas fichas de loja** com ASO próprio. As palavras-chave não se traduzem: em inglês o público busca "leveling", "RPG fitness"; em português, "treino em casa", "sedentário", "começar do zero".
+- **Modo Companheiro (§24 #8)** dobra as strings de mensagem do Sistema: cada mensagem tem variante fria e variante calorosa, nos dois idiomas. Orçar isso — são ~200 strings a mais por idioma.
+
+---
+
+## 24. Métricas de sucesso
 
 | Métrica | Alvo v1.0 | Por quê |
 |---|---|---|
@@ -1023,7 +1202,7 @@ Mecânicas de jogo e ideias gerais **não são protegidas por direito autoral** 
 
 ---
 
-## 23. Riscos
+## 25. Riscos
 
 | Risco | Prob. | Impacto | Mitigação |
 |---|---|---|---|
@@ -1038,21 +1217,39 @@ Mecânicas de jogo e ideias gerais **não são protegidas por direito autoral** 
 
 ---
 
-## 24. Decisões pendentes (preciso da sua resposta)
+## 26. Decisões fechadas
 
-1. **Nome.** Mantemos "Arise" aceitando o risco de PI, ou escolhemos outro? *(Minha recomendação: trocar — ver §20.)*
-2. **Idioma do MVP.** Só pt-BR, ou pt-BR + inglês desde o início? *(O público de manhwa é global; mas i18n dobra o custo de conteúdo.)*
-3. **Monetização.** Grátis, freemium (ranks avançados pagos), assinatura, ou compra única? Precisa estar decidido antes da arquitetura de contas.
-4. **Escopo do MVP.** Concorda em cortar em Rank C, ou prefere a jornada completa até S no lançamento?
-5. **Módulo de nutrição.** Mantemos fora do MVP e opt-in depois, como propus?
-6. **Ranking social.** Só guildas pequenas, ou também leaderboard global? *(Recomendo só guildas.)*
-7. **Vídeos de exercício.** Filmagem própria, animação 3D, ou licenciar biblioteca pronta? Impacta diretamente prazo e custo.
-8. **Tom das mensagens.** O Sistema deve ser frio e impessoal (fiel à obra) ou ter momentos de calor humano? *(Recomendo frio por padrão, com um toggle "Modo Companheiro".)*
-9. **Backend no MVP.** Confirma 100% offline na v1.0, ou já quer contas para não perder dados de usuário na troca de aparelho?
+Todas resolvidas em 21/09/2026.
+
+| # | Questão | Decisão | Seção |
+|---|---|---|---|
+| 1 | Nome do app | **Manter "Arise" por enquanto**, trocar antes do primeiro TestFlight. Identificadores técnicos usam codinome neutro desde já | §20 |
+| 2 | Idiomas | **pt-BR + en-US** no lançamento. Espanhol na v2.0 | §23 |
+| 3 | Monetização | **3 dias grátis**, depois assinatura mensal ou anual. Sem cartão na entrada | §22 |
+| 4 | Escopo de ranks | **Jornada completa E → S** no MVP | §21 |
+| 5 | Nutrição | **Fora do MVP**, visível como "em breve". Sono, hidratação e DOMS ficam | §13 |
+| 6 | Social | **Só guildas**, sem ranking global. Depende de backend → v1.2 | §12 |
+| 7 | Vídeos | **Fora do MVP.** Par de ilustrações + cues no lugar | §9.0 |
+| 8 | Tom do Sistema | **Frio e impessoal por padrão**, com toggle "Modo Companheiro" | §14, §23.1 |
+| 9 | Backend | **Offline no v1.0.** Backup em iCloud/Google obrigatório por ser app pago | §22.4 |
+
+### Três tensões que essas decisões criaram, e como foram resolvidas
+
+**#3 pago × #9 sem contas.** Assinatura funciona offline via StoreKit 2 / Play Billing, mas o histórico morre na troca de aparelho — inaceitável num app pago. Resolvido tornando o backup automático em nuvem um item obrigatório do v1.0, não um extra (§22.4).
+
+**#6 guildas × #9 offline.** Guilda é estado compartilhado; não existe offline. Guildas ficam na v1.2 junto com o backend (§12).
+
+**#4 até o Rank S × #7 sem vídeo × #2 dois idiomas.** As três primeiras decisões ampliam muito o escopo; o corte de vídeo é o que torna o conjunto viável. Prazo revisado de 10–14 para **16–20 semanas** (§21).
+
+### Decisões que ainda vão precisar de dados, não de opinião
+
+- **Duração do teste grátis.** Implementado como valor configurável. Os primeiros 500 usuários decidem se 3 dias, 7 dias ou 3 missões converte melhor (§22.1).
+- **Preço.** R$ 19,90/mês e R$ 99,90/ano são ponto de partida, para revisão na v1.1 (§22.2).
+- **Nome definitivo.** Prazo: antes do primeiro build de teste externo (§20).
 
 ---
 
-## 25. Fontes da pesquisa
+## 27. Fontes da pesquisa
 
 ### Solo Leveling
 - [The Preparation To Become Powerful — Solo Leveling Wiki](https://solo-leveling.fandom.com/wiki/The_Preparation_To_Become_Powerful)
