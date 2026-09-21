@@ -83,11 +83,11 @@ export default function Penalidade() {
         </View>
 
         <SystemButton label="Sobreviver" variant="danger" height={58}
-          onPress={() => router.replace('/(tabs)')} />
+          onPress={() => router.replace('/status')} />
         <SystemButton
           label={`Usar pedra de recuperação (${progression.recoveryStones})`}
           variant="ghost" height={46}
-          onPress={() => router.replace('/(tabs)')}
+          onPress={() => router.replace('/status')}
         />
       </View>
     </Screen>

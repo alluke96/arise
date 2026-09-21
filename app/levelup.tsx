@@ -63,9 +63,9 @@ export default function LevelUp() {
 
         <View style={styles.actions}>
           <SystemButton label="Ver sombra" variant="ghost" height={54} style={{ flex: 1 }}
-            onPress={() => router.replace('/(tabs)/exercito')} />
+            onPress={() => router.replace('/exercito')} />
           <SystemButton label="Continuar" height={54} style={{ flex: 1 }}
-            onPress={() => router.replace('/(tabs)')} />
+            onPress={() => router.replace('/status')} />
         </View>
       </View>
     </Screen>

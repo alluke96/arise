@@ -21,7 +21,7 @@ export default function MissaoScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Pressable accessibilityRole="button" accessibilityLabel="Voltar"
-            onPress={() => router.push('/(tabs)')} hitSlop={12}>
+            onPress={() => router.push('/status')} hitSlop={12}>
             <IconBack />
           </Pressable>
           <HudLabel style={{ fontSize: 17, letterSpacing: 2.4 }}>Missão Diária</HudLabel>

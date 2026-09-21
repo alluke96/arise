@@ -5,6 +5,7 @@ import {
   SystemWindow, Txt, color, space,
 } from '../../src/ui';
 import { RANK_CRITERIA, weeksToRankS } from '../../src/core/engine';
+import { repositories } from '../../src/core/repositories';
 
 const TODAY = [
   { value: '10', label: 'flexões na parede' },
@@ -78,7 +79,10 @@ export default function Contrato() {
             label="Aceitar o contrato"
             icon={<IconArrow />}
             height={58}
-            onPress={() => router.replace('/(tabs)')}
+            onPress={async () => {
+              await repositories.profile.completeOnboarding();
+              router.replace('/status');
+            }}
           />
           <Txt variant="bodySm" tone="muted" style={styles.note}>
             A missão cresce no máximo 10% por semana.{'\n'}

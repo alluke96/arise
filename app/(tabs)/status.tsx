@@ -5,10 +5,10 @@ import {
   HudLabel, IconClock, IconFlame, IconStone, RadarChart, RankBadge,
   Screen, StatBar, SystemWindow, Txt, color, space,
 } from '../../src/ui';
-import { selectLevelProgress, useProgression } from '../../src/features/progression/store';
+import { useProgression } from '../../src/features/progression/store';
 import { useQuest } from '../../src/features/quest/store';
 import { exerciseById } from '../../src/data/exercises';
-import { RANK_CRITERIA } from '../../src/core/engine';
+import { RANK_CRITERIA, levelProgress } from '../../src/core/engine';
 
 const ATTR_LABEL = {
   STR: 'Força', AGI: 'Agilidade', VIT: 'Vitalidade',
@@ -18,7 +18,9 @@ const ATTR_LABEL = {
 export default function StatusScreen() {
   const router = useRouter();
   const { profile, progression, hydrate } = useProgression();
-  const xp = useProgression(selectLevelProgress);
+  // Derivado no render, NÃO num selector: `levelProgress` monta objeto novo a
+  // cada chamada, e o Zustand v5 compara snapshot por referência.
+  const xp = levelProgress(progression);
   const { quest, load } = useQuest();
 
   useEffect(() => {
@@ -89,7 +91,7 @@ export default function StatusScreen() {
           </View>
         </View>
 
-        <Pressable onPress={() => router.push('/(tabs)/missao')} accessibilityRole="button">
+        <Pressable onPress={() => router.push('/missao')} accessibilityRole="button">
           <SystemWindow variant="highlight" padding={17}>
             <View style={styles.questHeader}>
               <HudLabel tone="blue">Missão diária</HudLabel>

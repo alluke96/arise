@@ -13,6 +13,9 @@ import type {
 export interface ProfileRepository {
   get(): Promise<UserProfile | null>;
   save(profile: UserProfile): Promise<void>;
+  /** Decide entre o fluxo de onboarding e as abas na abertura do app. */
+  isOnboarded(): Promise<boolean>;
+  completeOnboarding(): Promise<void>;
 }
 
 export interface ProgressionRepository {

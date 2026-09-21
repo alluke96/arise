@@ -27,7 +27,10 @@ export const DEMO_PROFILE: UserProfile = {
 
 export const DEMO_PROGRESSION: Progression = {
   level: 14,
-  xp: 5240,
+  // Mantido dentro da faixa do nível 14: xpForLevel(14)=4591, xpForLevel(15)=5074.
+  // 4915 → 324/483 na barra (67%), igual ao mock visual. Um valor acima de 5074
+  // significaria que `applyXp` não rodou, e a barra estouraria.
+  xp: 4915,
   rank: 'D',
   attributes: { STR: 27, AGI: 19, VIT: 34, PER: 22, INT: 12 },
   unspentPoints: 3,

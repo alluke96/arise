@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { applyXp, levelProgress } from '../../core/engine';
+import { applyXp } from '../../core/engine';
 import { repositories } from '../../core/repositories';
 import type { Progression, SessionSummary, UserProfile } from '../../core/types';
 import { DEMO_PROFILE, DEMO_PROGRESSION } from '../../data/mocks/demo';
@@ -44,4 +44,14 @@ export const useProgression = create<ProgressionState>((set, get) => ({
   },
 }));
 
-export const selectLevelProgress = (s: ProgressionState) => levelProgress(s.progression);
+/**
+ * NÃO adicione selectors que montem objeto novo (`{...}`, `.map`, `.filter`).
+ *
+ * O Zustand v5 usa `useSyncExternalStore`, que compara snapshots por
+ * REFERÊNCIA. Um selector que devolve objeto novo a cada chamada faz o React
+ * ver um snapshot diferente em todo render e entrar em loop infinito
+ * ("The result of getSnapshot should be cached" → "Maximum update depth
+ * exceeded").
+ *
+ * Derive no render — `levelProgress(progression)` — ou use `useShallow`.
+ */

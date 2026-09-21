@@ -13,6 +13,7 @@ import type { Repositories } from './types';
  *  mesmos tipos de domínio — nenhuma forma inventada por tela. */
 export function createMockRepositories(): Repositories {
   let profile: UserProfile | null = DEMO_PROFILE;
+  let onboarded = false;
   let progression: Progression = { ...DEMO_PROGRESSION };
   let screening: HealthScreening | null = DEMO_SCREENING;
   let sessions: SessionSummary[] = [...DEMO_SESSIONS];
@@ -24,6 +25,8 @@ export function createMockRepositories(): Repositories {
     profile: {
       async get() { return profile; },
       async save(p) { profile = p; },
+      async isOnboarded() { return onboarded; },
+      async completeOnboarding() { onboarded = true; },
     },
     progression: {
       async get() { return progression; },

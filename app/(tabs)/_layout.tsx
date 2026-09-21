@@ -26,7 +26,7 @@ export default function TabsLayout() {
         sceneStyle: { backgroundColor: color.bg },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Status', tabBarIcon: ({ color: c }) => <IconHome c={c} /> }} />
+      <Tabs.Screen name="status" options={{ title: 'Status', tabBarIcon: ({ color: c }) => <IconHome c={c} /> }} />
       <Tabs.Screen name="missao" options={{ title: 'Missão', tabBarIcon: ({ color: c }) => <IconSword c={c} /> }} />
       <Tabs.Screen name="codice" options={{ title: 'Códice', tabBarIcon: ({ color: c }) => <IconBook c={c} /> }} />
       <Tabs.Screen name="exercito" options={{ title: 'Exército', tabBarIcon: ({ color: c }) => <IconArmy c={c} /> }} />

@@ -94,7 +94,7 @@ export default function Reavaliacao() {
           onPress={() => router.push('/penalidade')} />
         <SystemButton
           label={outcome.passed ? `Avançar para o Rank ${outcome.targetRank}` : 'Voltar ao treino'}
-          onPress={() => router.replace('/(tabs)')}
+          onPress={() => router.replace('/status')}
         />
         <Txt variant="bodySm" tone="muted" style={{ textAlign: 'center' }}>
           Rank atual no perfil: {progression.rank} · próxima reavaliação em 6 semanas
