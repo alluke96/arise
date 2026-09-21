@@ -6,6 +6,7 @@
 **Data:** 21/09/2026
 **Status:** Aguardando validação do product owner
 **Plataforma:** React Native (iOS + Android)
+**Mock visual:** [Arise — Mock MVP](https://claude.ai/artifact/HjUuwnQLCsoqQLsEWwYf6b) — 12 telas navegáveis (privado; precisa ser compartilhado para outras pessoas abrirem)
 
 ---
 
@@ -771,18 +772,22 @@ Onboarding (7 passos)
 
 | Elemento | Especificação |
 |---|---|
-| **Fundo** | `#080B14` → `#0F1729` (gradiente vertical) |
-| **Ciano do Sistema** | `#4DD0E1` / brilho `#00E5FF` |
-| **Azul profundo** | `#1A3A5C` |
-| **Roxo sombra** | `#6A4C93` |
-| **Dourado (raro)** | `#FFD166` — só Rank S+ e sombras de General |
-| **Vermelho alerta** | `#E63946` — Zona de Penalidade, Dungeon Break |
-| **Verde sucesso** | `#06D6A0` |
-| **Tipografia display** | Condensada, caixa alta, tracking amplo (ex.: Rajdhani, Chakra Petch, Saira Condensed) |
-| **Tipografia corpo** | Inter / system font — legibilidade acima de tema |
+| **Fundo** | `#0C0618` base, `#150C2B` para superfícies elevadas |
+| **Roxo primário** (dominante) | `#7C3AED` — botões, molduras, preenchimentos |
+| **Roxo claro** | `#A78BFA` / `#C4B5FD` — bordas luminosas, ícones de grau Elite |
+| **Azul claro** (detalhes) | `#7DD3FC` — rótulos de dado, links, aba ativa, barra de XP |
+| **Vermelho** (destaques) | `#FF3B5C` em preenchimento, `#FF5470`/`#FF6B85` em texto — contagem regressiva, Zona de Penalidade, alertas da triagem, meta do Rank S |
+| **Dourado (raro)** | `#FBBF24` — só Rank S+ e sombras de grau General |
+| **Verde sucesso** | `#4ADE80` — exclusivamente "concluído" |
+| **Texto** | `#F3EFFF` primário, `#ADA2CC` secundário, `#8A7EAE` terciário |
+| **Tipografia display** | **Chakra Petch** 500/600/700 — caixa alta, tracking amplo, números e rótulos de HUD |
+| **Tipografia corpo** | **Barlow** 400/500/600 — legibilidade acima de tema |
+
+> A paleta acima é a validada no mock. Regra de uso: **roxo carrega a interface, azul claro marca o dado, vermelho só aparece onde há urgência ou risco real.** Verde e dourado são raros de propósito — se aparecem em toda tela, param de significar algo.
 
 **Componentes assinatura:**
-- `<SystemWindow>` — moldura ciano de 1px, cantos chanfrados (não arredondados), fundo `rgba(13,27,42,0.85)` com blur, borda com brilho externo sutil.
+- `<SystemWindow>` — moldura de 1px em roxo claro, **cantos chanfrados via `clip-path`** (nunca arredondados), fundo `#150C2B`, brilho externo sutil. Variante de destaque troca a moldura para azul claro; variante de alerta, para vermelho.
+- **Malha de fundo** — grade de 26px em `rgba(139,92,246,.05)` sobre um halo radial roxo no topo. Dá textura de HUD sem virar wash de gradiente.
 - **Animação de entrada:** scale de 0.95→1 + fade + glitch horizontal de 80ms + *chime*.
 - **Texto digitando** para mensagens do Sistema (pulável com um toque).
 - **Level up:** flash de tela cheia, partículas ascendentes, grave pesado, haptic `notificationSuccess`.
