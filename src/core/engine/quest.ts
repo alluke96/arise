@@ -1,55 +1,33 @@
 import type {
   DailyQuest, Exercise, HealthScreening, PainLogEntry, Pattern,
-  Progression, QuestObjective, SessionSummary, UserProfile,
+  Progression, QuestObjective, Rank, SessionSummary, UserProfile,
 } from '../types';
-import { applyCautionMode, dropPainfulPatterns, isDeloadWeek } from './guards';
+import { CAUTION_MAX_RANK, applyCautionMode, dropPainfulPatterns, isDeloadWeek } from './guards';
+import { eligibleRungs, entryIndex, type LadderPosition } from './ladder';
 import { rankAtLeast } from './rank';
 import {
   progressionFactor, readinessFactor, recalibrationFactor, scaleObjective,
+  type WeeklyReference,
 } from './scaling';
 
+export { isPrescribable, LOAD_PATTERNS } from './ladder';
+
 /** R4.2/R4.3 — padrões obrigatórios por rank. */
-function patternsFor(rank: Progression['rank']): Pattern[] {
+function patternsFor(rank: Rank): Pattern[] {
   const core: Pattern[] = ['push_h', 'squat', 'core_anti_ext', 'aerobic'];
   return rankAtLeast(rank, 'C') ? [...core, 'pull_h'] : core;
 }
 
-/** Padrões que exigem par de ilustrações para serem prescritos (R11.3/R11.4). */
-const LOAD_PATTERNS: Pattern[] = [
-  'push_h', 'push_v', 'pull_h', 'pull_v', 'squat', 'hinge',
-  'unilateral', 'core_anti_ext', 'core_anti_rot', 'trunk_flex',
-];
-
-export function isPrescribable(ex: Exercise): boolean {
-  if (!LOAD_PATTERNS.includes(ex.pattern)) return true;
-  return ex.illustrations !== null;
-}
-
-/**
- * Escolhe o degrau da escada, não o exercício mais difícil que o rank permite.
- *
- * `minRank` marca o rank em que aquele degrau vira o padrão. Pegar sempre o
- * mais difícil elegível daria negativas de flexão a um Rank D que ainda não
- * fecha a flexão de joelhos — tecnicamente permitido, na prática cedo demais.
- * Por isso a preferência é pelo degrau do rank atual, e só na falta dele o
- * motor recua para o mais difícil disponível abaixo.
- */
+/** Degrau de entrada do rank para um padrão, sem histórico de escada. */
 export function pickExercise(
   catalog: Exercise[],
   pattern: Pattern,
   profile: UserProfile,
-  rank: Progression['rank'],
+  rank: Rank,
 ): Exercise | null {
-  const eligible = catalog
-    .filter((e) => e.pattern === pattern)
-    .filter(isPrescribable)
-    .filter((e) => rankAtLeast(rank, e.minRank))
-    .filter((e) => e.equipment.some((eq) => profile.equipment.includes(eq)))
-    .filter((e) => !e.contraindications.some((c) => profile.limitations.includes(c)))
-    .sort((a, b) => b.difficulty - a.difficulty);
-
-  const atRank = eligible.filter((e) => e.minRank === rank);
-  return atRank[0] ?? eligible[0] ?? null;
+  const rungs = eligibleRungs(catalog, pattern, profile);
+  const i = entryIndex(rungs, rank);
+  return i >= 0 ? rungs[i] : null;
 }
 
 export interface QuestInput {
@@ -61,7 +39,12 @@ export interface QuestInput {
   catalog: Exercise[];
   date: string;
   weekIndex: number;
-  lastWeekVolume: number;
+  /** Carga prescrita por padrão na última semana não-deload (R4.5). */
+  lastWeek: Partial<Record<Pattern, WeeklyReference>>;
+  /** Degrau atual de cada padrão, vindo de `foldLadder`. */
+  ladder?: Partial<Record<Pattern, LadderPosition>>;
+  /** R9.2 — reentrada pós-Dungeon Break. */
+  reentry?: boolean;
   sleepHours: number;
   soreness: 0 | 1 | 2 | 3;
   consecutiveFailures: number;
@@ -71,14 +54,22 @@ export interface QuestInput {
 export function generateDailyQuest(input: QuestInput): DailyQuest {
   const { profile, progression, screening, date } = input;
 
-  const deadline = `${date}T23:59:59`;
+  /**
+   * R2.5 — no Modo Prudência o rank efetivo é no máximo D, e é ELE que escolhe
+   * exercícios e alvos. Uma versão anterior só trocava o rótulo do rank depois
+   * de montar a missão com os exercícios do rank real.
+   */
+  const rank: Rank = screening.result !== 'cleared' && rankAtLeast(progression.rank, CAUTION_MAX_RANK)
+    ? CAUTION_MAX_RANK
+    : progression.rank;
+
   const base: DailyQuest = {
     id: `quest-${date}`,
     date,
-    rank: progression.rank,
+    rank,
     objectives: [],
     status: 'pending',
-    deadline,
+    deadline: `${date}T23:59:59`,
     isDeload: isDeloadWeek(input.weekIndex),
     isRestDay: !input.isTrainingDay,
     xpAwarded: null,
@@ -89,29 +80,30 @@ export function generateDailyQuest(input: QuestInput): DailyQuest {
     return applyCautionMode(base, screening);
   }
 
-  const readiness = readinessFactor(
-    progression.attributes.VIT, input.sleepHours, input.soreness,
-  );
+  const readiness = readinessFactor(progression.attributes.VIT, input.sleepHours, input.soreness);
   const progFactor = progressionFactor(input.history);
   const recal = recalibrationFactor(input.consecutiveFailures);
 
-  const wanted = patternsFor(progression.rank).map((p) => ({ pattern: p }));
+  const wanted = patternsFor(rank).map((p) => ({ pattern: p }));
   const allowed = dropPainfulPatterns(wanted, input.painLog);
 
   const objectives: QuestObjective[] = [];
   for (const { pattern } of allowed) {
-    const exercise = pickExercise(input.catalog, pattern, profile, progression.rank);
+    const exercise = chooseExercise(input, pattern, rank);
     if (!exercise) continue;
 
     const targetValue = scaleObjective({
-      rank: progression.rank,
+      rank,
       pattern,
+      unit: exercise.unit,
+      difficulty: exercise.difficulty,
       isTrainingDay: true,
       readiness,
       progression: progFactor,
       recalibration: recal,
       weekIndex: input.weekIndex,
-      lastWeekVolume: input.lastWeekVolume,
+      lastWeek: input.lastWeek[pattern],
+      reentry: input.reentry,
     });
 
     objectives.push({
@@ -126,6 +118,20 @@ export function generateDailyQuest(input: QuestInput): DailyQuest {
   }
 
   return applyCautionMode({ ...base, objectives }, screening);
+}
+
+/**
+ * Usa o degrau da escada quando ele ainda é válido para este usuário e este
+ * rank efetivo; senão, o degrau de entrada do rank.
+ */
+function chooseExercise(input: QuestInput, pattern: Pattern, rank: Rank): Exercise | null {
+  const pos = input.ladder?.[pattern];
+  if (pos) {
+    const rungs = eligibleRungs(input.catalog, pattern, input.profile);
+    const ex = rungs.find((e) => e.id === pos.exerciseId);
+    if (ex && rankAtLeast(rank, ex.minRank)) return ex;
+  }
+  return pickExercise(input.catalog, pattern, input.profile, rank);
 }
 
 export function questProgress(quest: DailyQuest): number {

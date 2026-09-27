@@ -49,7 +49,7 @@ export const useQuest = create<QuestState>((set, get) => ({
     const generated = generateDailyQuest({
       profile, progression, screening, catalog, history, painLog, date,
       weekIndex: DEMO_WEEK_INDEX,
-      lastWeekVolume: DEMO_LAST_WEEK_VOLUME,
+      lastWeek: {},
       sleepHours: 7,
       soreness: 1,
       consecutiveFailures: 0,

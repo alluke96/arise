@@ -6,6 +6,11 @@ export type StreakState =
 export const PENALTY_DURATION_SECONDS = 240;
 export const PENALTY_MAX_RPE = 3;
 export const MONTHLY_RECOVERY_STONES = 2;
+/**
+ * Teto de pedras acumuladas. Sem teto, quem nunca falha juntaria 24 por ano
+ * e a sequência deixaria de ter qualquer peso.
+ */
+export const MAX_RECOVERY_STONES = 2;
 export const DUNGEON_BREAK_AFTER_DAYS = 3;
 export const REENTRY_SESSIONS = 3;
 export const REENTRY_VOLUME_FACTOR = 0.5;

@@ -25,10 +25,17 @@ export type DomainEvent =
   | (EventBase & { kind: 'stone_used' })
   | (EventBase & { kind: 'injury_declared' })
   | (EventBase & { kind: 'injury_cleared' })
+  /** R9 — dias de treino perdidos em sequência: dispara o Dungeon Break. */
+  | (EventBase & { kind: 'inactivity_detected'; days: number })
   | (EventBase & { kind: 'benchmark_passed'; rankAfter: Rank })
   | (EventBase & { kind: 'shadow_unlocked'; shadowId: string })
   | (EventBase & { kind: 'points_spent'; attribute: Attribute; amount: number })
-  | (EventBase & { kind: 'pain_logged'; pattern: Pattern; painKind: 'joint' | 'muscle' });
+  | (EventBase & { kind: 'pain_logged'; pattern: Pattern; painKind: 'joint' | 'muscle' })
+  /** R5.8/R5.9 — "Muito difícil" / "Muito fácil" move o degrau da escada. */
+  | (EventBase & {
+      kind: 'exercise_adjusted'; pattern: Pattern;
+      direction: 'easier' | 'harder'; fromId: string; toId: string;
+    });
 
 export type EventKind = DomainEvent['kind'];
 
@@ -41,10 +48,12 @@ export const EVENT_TABLE: Record<EventKind, string> = {
   stone_used: 'stone_events',
   injury_declared: 'injury_events',
   injury_cleared: 'injury_events',
+  inactivity_detected: 'inactivity_events',
   benchmark_passed: 'benchmarks',
   shadow_unlocked: 'shadow_unlocks',
   points_spent: 'point_allocations',
   pain_logged: 'pain_log',
+  exercise_adjusted: 'exercise_adjustments',
 };
 
 /**

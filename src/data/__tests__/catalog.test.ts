@@ -122,7 +122,7 @@ describe('cobertura: o motor monta missao em qualquer cenario', () => {
         restrictions: limitations, expiresAt: '2027-09-01',
       },
       history: [], painLog: [], catalog: EXERCISES, date: '2026-09-21',
-      weekIndex: 0, lastWeekVolume: 0, sleepHours: 7, soreness: 0,
+      weekIndex: 0, lastWeek: {}, sleepHours: 7, soreness: 0,
       consecutiveFailures: 0, isTrainingDay: true,
     });
 

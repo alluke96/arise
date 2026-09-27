@@ -92,6 +92,13 @@ export interface DailyQuest {
   xpAwarded: number | null;
 }
 
+export interface ObjectiveResult {
+  exerciseId: string;
+  value: number;
+  completed: boolean;
+  formOk: boolean;
+}
+
 export interface SessionSummary {
   date: string;
   durationMin: number;
@@ -101,6 +108,12 @@ export interface SessionSummary {
   resistedVolume: number;
   aerobicMinutes: number;
   formOkRatio: number;
+  /** Resultado por exercício. Alimenta a escada de progressão e as sombras. */
+  results?: ObjectiveResult[];
+  /** Hora local da conclusão (0–23). Usada por sombras de horário. */
+  localHour?: number;
+  /** Dia de descanso honrado (R4.10): vale XP, não entra nos atributos. */
+  rest?: boolean;
 }
 
 export interface HealthScreening {

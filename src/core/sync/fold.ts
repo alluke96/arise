@@ -1,6 +1,6 @@
 import { applyXp, calcXp } from '../engine/xp';
 import { deriveAttributes, summarize4Weeks } from '../engine/attributes';
-import { snapshotFrom, streakTransition, type StreakSnapshot } from '../engine/penalty';
+import { MAX_RECOVERY_STONES, snapshotFrom, streakTransition, type StreakSnapshot } from '../engine/penalty';
 import type { Attribute, Progression, SessionSummary } from '../types';
 import { normalizeEvents, type DomainEvent } from './events';
 
@@ -42,10 +42,25 @@ export const DEFAULT_FOLD_CONTEXT: FoldContext = {
  * de propósito: uma segunda implementação divergiria com o tempo, e a
  * divergência apareceria como progresso perdido.
  */
+export interface FoldResult {
+  progression: Progression;
+  /** Estado completo da sequência — inclui reentrada pós-Dungeon Break. */
+  streak: StreakSnapshot;
+  /** Sessões de treino (sem dias de descanso), em ordem. */
+  sessions: SessionSummary[];
+}
+
 export function foldProgression(
   events: DomainEvent[],
   ctx: FoldContext = DEFAULT_FOLD_CONTEXT,
 ): Progression {
+  return foldAll(events, ctx).progression;
+}
+
+export function foldAll(
+  events: DomainEvent[],
+  ctx: FoldContext = DEFAULT_FOLD_CONTEXT,
+): FoldResult {
   const ordered = normalizeEvents(events);
 
   let prog: Progression = { ...INITIAL_PROGRESSION, attributes: { ...INITIAL_PROGRESSION.attributes } };
@@ -61,7 +76,9 @@ export function foldProgression(
         const gained = calcXp(e.session, streak.streakCurrent);
         prog = applyXp(prog, gained);
         streak = streakTransition(streak, { type: 'quest_completed' });
-        sessions.push(e.session);
+        // Descanso honrado vale XP e sequência, mas não é treino: não entra
+        // nos atributos, senão descansar inflaria Vitalidade.
+        if (!e.session.rest) sessions.push(e.session);
         break;
       }
       case 'penalty_completed':
@@ -71,7 +88,10 @@ export function foldProgression(
         streak = streakTransition(streak, { type: 'penalty_skipped' });
         break;
       case 'stone_granted':
-        streak = { ...streak, recoveryStones: streak.recoveryStones + e.amount };
+        streak = {
+          ...streak,
+          recoveryStones: Math.min(MAX_RECOVERY_STONES, streak.recoveryStones + e.amount),
+        };
         break;
       case 'stone_used':
         streak = streakTransition(streak, { type: 'stone_used' });
@@ -92,8 +112,12 @@ export function foldProgression(
           prog = { ...prog, unspentPoints: prog.unspentPoints - e.amount };
         }
         break;
+      case 'inactivity_detected':
+        streak = streakTransition(streak, { type: 'days_inactive', days: e.days });
+        break;
       case 'shadow_unlocked':
       case 'pain_logged':
+      case 'exercise_adjusted':
         // Não afetam a progressão; foldados em outras projeções.
         break;
     }
@@ -117,11 +141,15 @@ export function foldProgression(
   ) as Record<Attribute, number>;
 
   return {
-    ...prog,
-    attributes,
-    streakCurrent: streak.streakCurrent,
-    streakBest: streak.streakBest,
-    recoveryStones: streak.recoveryStones,
+    progression: {
+      ...prog,
+      attributes,
+      streakCurrent: streak.streakCurrent,
+      streakBest: streak.streakBest,
+      recoveryStones: streak.recoveryStones,
+    },
+    streak,
+    sessions,
   };
 }
 
