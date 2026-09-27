@@ -1,3 +1,4 @@
+import type { DomainEvent } from '../sync/events';
 import type {
   DailyQuest, Exercise, HealthScreening, PainLogEntry,
   Progression, SessionSummary, Shadow, UserProfile,
@@ -50,6 +51,20 @@ export interface PainRepository {
   add(entry: PainLogEntry): Promise<void>;
 }
 
+/**
+ * Log de eventos: a fonte da verdade da progressão. Ver
+ * `.kiro/specs/arise-backend/design.md` §1.
+ */
+export interface EventRepository {
+  append(event: DomainEvent): Promise<void>;
+  all(): Promise<DomainEvent[]>;
+  /** Pendentes de envio ao servidor, em ordem. */
+  unsynced(limit: number): Promise<DomainEvent[]>;
+  markSynced(ids: string[]): Promise<void>;
+  /** Recalcula a progressão a partir do log. */
+  refold(): Promise<Progression>;
+}
+
 export interface Repositories {
   profile: ProfileRepository;
   progression: ProgressionRepository;
@@ -58,4 +73,5 @@ export interface Repositories {
   quests: QuestRepository;
   shadows: ShadowRepository;
   pain: PainRepository;
+  events: EventRepository;
 }
