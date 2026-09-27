@@ -25,6 +25,15 @@ export function isPrescribable(ex: Exercise): boolean {
   return ex.illustrations !== null;
 }
 
+/**
+ * Escolhe o degrau da escada, não o exercício mais difícil que o rank permite.
+ *
+ * `minRank` marca o rank em que aquele degrau vira o padrão. Pegar sempre o
+ * mais difícil elegível daria negativas de flexão a um Rank D que ainda não
+ * fecha a flexão de joelhos — tecnicamente permitido, na prática cedo demais.
+ * Por isso a preferência é pelo degrau do rank atual, e só na falta dele o
+ * motor recua para o mais difícil disponível abaixo.
+ */
 export function pickExercise(
   catalog: Exercise[],
   pattern: Pattern,
@@ -39,7 +48,8 @@ export function pickExercise(
     .filter((e) => !e.contraindications.some((c) => profile.limitations.includes(c)))
     .sort((a, b) => b.difficulty - a.difficulty);
 
-  return eligible[0] ?? null;
+  const atRank = eligible.filter((e) => e.minRank === rank);
+  return atRank[0] ?? eligible[0] ?? null;
 }
 
 export interface QuestInput {
