@@ -1,133 +1,128 @@
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  HudLabel, IconAlert, Screen, SystemButton, Txt, color, font, space,
+  Choice, HudLabel, IconAlert, MultiChoice, Note, Screen, SystemButton, Txt, color, font, space,
 } from '../../src/ui';
 import { Steps } from '../../src/features/onboarding/Steps';
-import { evaluateParq, type ParqKey } from '../../src/core/engine';
+import { useOnboarding } from '../../src/features/onboarding/store';
+import { useHunter } from '../../src/features/hunter/store';
+import { useT } from '../../src/features/settings/store';
+import { PARQ_KEYS, evaluateParq, type ParqKey } from '../../src/core/engine';
 import { repositories } from '../../src/core/repositories';
 import type { Limitation } from '../../src/core/types';
+import type { TKey } from '../../src/core/i18n';
 
-/** Textos provisórios. A tarefa 37 substitui pelas versões OFICIAIS do
- *  PAR-Q+ (original em inglês e a brasileira validada) — traduzir por conta
- *  própria invalidaria o instrumento. */
-const QUESTIONS: { key: ParqKey; text: string }[] = [
-  { key: 'heart_condition', text: 'Algum médico já disse que você tem problema cardíaco e que só deve fazer atividade física sob supervisão?' },
-  { key: 'chest_pain_activity', text: 'Você sente dor no peito ao praticar atividade física?' },
-  { key: 'bone_joint', text: 'Você tem algum problema ósseo ou articular que poderia piorar com a prática de atividade física?' },
-];
+const LIMITS: Limitation[] = ['knee', 'lower_back', 'shoulder', 'wrist', 'neck'];
 
-const LIMITS: { key: Limitation; label: string }[] = [
-  { key: 'knee', label: 'Joelho' }, { key: 'lower_back', label: 'Lombar' },
-  { key: 'shoulder', label: 'Ombro' }, { key: 'wrist', label: 'Punho' },
-];
-
+/**
+ * R2 — triagem obrigatória. Também serve para RENOVAR (R2.8, R2.9): com
+ * `?renew=1` grava direto e volta, em vez de seguir o onboarding.
+ */
 export default function Triagem() {
   const router = useRouter();
-  const [answers, setAnswers] = useState<Partial<Record<ParqKey, boolean>>>({ bone_joint: true });
-  const [limits, setLimits] = useState<Limitation[]>(['knee']);
+  const t = useT();
+  const { renew } = useLocalSearchParams<{ renew?: string }>();
+  const renewing = renew === '1';
+  const { draft, parq, setParq, toggleLimitation, setDraft } = useOnboarding();
+  const hunter = useHunter();
 
-  const screening = evaluateParq({ answers, limitations: limits, date: '2026-09-21' });
+  const limitations = renewing && hunter.profile ? hunter.profile.limitations : draft.limitations;
+  const toggle = (l: Limitation) => {
+    if (renewing && hunter.profile) {
+      const cur = hunter.profile.limitations;
+      void hunter.saveProfile({ limitations: cur.includes(l) ? cur.filter((x) => x !== l) : [...cur, l] });
+    } else {
+      toggleLimitation(l);
+    }
+  };
+
+  const gender = renewing ? hunter.profile?.gender : draft.gender;
+  const result = evaluateParq({ answers: parq, limitations, date: hunter.today }).result;
+
+  const yesNo = (key: ParqKey) => (
+    <Choice
+      value={parq[key] === true ? 'yes' : 'no'}
+      onChange={(v) => setParq(key, v === 'yes')}
+      tone={parq[key] ? 'red' : 'purple'}
+      options={[{ value: 'yes', label: t('common.yes') }, { value: 'no', label: t('common.no') }]}
+    />
+  );
 
   const submit = async () => {
-    await repositories.screening.save(screening);
-    router.push('/(onboarding)/contrato');
+    if (renewing) {
+      await repositories.screening.save(evaluateParq({ answers: parq, limitations, date: hunter.today }));
+      await hunter.boot();
+      router.back();
+      return;
+    }
+    if (parq.bone_joint === false) setDraft({ limitations: [] });
+    router.push('/(onboarding)/baseline');
   };
 
   return (
     <Screen>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Steps current={4} badge={
-          <View style={styles.required}>
-            <HudLabel tone="red" style={{ fontSize: 10 }}>Obrigatório</HudLabel>
-          </View>
-        } />
+      <ScrollView contentContainerStyle={styles.content}>
+        {!renewing && (
+          <Steps current={3} badge={
+            <View style={styles.required}>
+              <HudLabel tone="red" style={{ fontSize: 10 }}>{t('common.required')}</HudLabel>
+            </View>
+          } />
+        )}
 
         <View>
-          <Txt variant="title">Triagem de Saúde</Txt>
+          <Txt variant="title" accessibilityRole="header">{t('onboarding.screeningTitle')}</Txt>
           <Txt variant="bodySm" tone="blue" style={{ marginTop: 5, fontFamily: font.displayMedium }}>
-            PAR-Q+ · versão brasileira validada
+            {t('onboarding.screeningSource')}
           </Txt>
         </View>
-        <Txt variant="body" tone="dim" style={{ marginTop: -8 }}>
-          Nenhum treino é liberado antes disso. Responda com honestidade — é o único jeito de o Sistema te proteger.
-        </Txt>
+        <Txt variant="body" tone="dim" style={{ marginTop: -8 }}>{t('onboarding.screeningIntro')}</Txt>
 
-        {QUESTIONS.map((q, i) => {
-          const yes = answers[q.key] === true;
-          return (
-            <View key={q.key} style={[styles.card, yes && styles.cardFlagged]}>
-              <Txt variant="body" style={{ marginBottom: 11 }}>
-                <Txt variant="body" tone="muted" style={{ fontFamily: font.displayMedium }}>
-                  {String(i + 1).padStart(2, '0')}
-                </Txt>
-                {'  '}{q.text}
+        {PARQ_KEYS.map((key, i) => (
+          <View key={key} style={[styles.card, parq[key] && styles.cardFlagged]}>
+            <Txt variant="body" style={{ marginBottom: 11 }}>
+              <Txt variant="body" tone="muted" style={{ fontFamily: font.displayMedium }}>
+                {String(i + 1).padStart(2, '0')}
               </Txt>
-              <View style={styles.answerRow} accessibilityRole="radiogroup">
-                <Pressable
-                  accessibilityRole="radio" accessibilityState={{ selected: yes }} accessibilityLabel="Sim"
-                  onPress={() => setAnswers((a) => ({ ...a, [q.key]: true }))}
-                  style={[styles.answer, yes ? styles.answerYesOn : styles.answerYesOff]}
-                >
-                  <Txt tone={yes ? 'default' : 'red'} style={styles.answerText}>SIM</Txt>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="radio" accessibilityState={{ selected: !yes }} accessibilityLabel="Não"
-                  onPress={() => setAnswers((a) => ({ ...a, [q.key]: false }))}
-                  style={[styles.answer, !yes ? styles.answerNoOn : styles.answerNoOff]}
-                >
-                  <Txt tone={!yes ? 'default' : 'dim'} style={styles.answerText}>NÃO</Txt>
-                </Pressable>
-              </View>
-
-              {yes && q.key === 'bone_joint' && (
-                <View style={styles.followup}>
-                  <HudLabel tone="red" style={{ fontSize: 12, marginBottom: 9 }}>Onde?</HudLabel>
-                  <View style={styles.chips}>
-                    {LIMITS.map((l) => {
-                      const on = limits.includes(l.key);
-                      return (
-                        <Pressable
-                          key={l.key}
-                          accessibilityRole="checkbox" accessibilityState={{ checked: on }}
-                          accessibilityLabel={l.label}
-                          onPress={() => setLimits((cur) =>
-                            on ? cur.filter((x) => x !== l.key) : [...cur, l.key])}
-                          style={[styles.chip, on ? styles.chipOn : styles.chipOff]}
-                        >
-                          <Txt variant="bodySm" tone={on ? 'default' : 'dim'} style={{ fontSize: 13 }}>
-                            {l.label}
-                          </Txt>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </View>
-              )}
-            </View>
-          );
-        })}
-
-        <Txt variant="bodySm" tone="muted" style={{ textAlign: 'center' }}>+ 4 perguntas</Txt>
-
-        {screening.result !== 'cleared' && (
-          <View style={styles.warning}>
-            <IconAlert />
-            <Txt variant="bodySm" tone="dim" style={{ flex: 1 }}>
-              {screening.result === 'blocked' ? (
-                <>O Sistema <Txt variant="bodySm" tone="red">bloqueou a prescrição de treino</Txt>. Procure
-                  um médico antes de continuar — só conteúdo educativo e caminhada leve ficam disponíveis.</>
-              ) : (
-                <>Você marcou {limits.length > 0 ? limits.map((l) => LIMITS.find((x) => x.key === l)?.label.toLowerCase()).join(', ') : 'uma condição'}. O
-                  Sistema vai remover os exercícios contraindicados e ativar o{' '}
-                  <Txt variant="bodySm" tone="default">Modo Prudência</Txt> até liberação médica.</>
-              )}
+              {'  '}{t(`parq.${key}` as TKey)}
             </Txt>
+            {yesNo(key)}
+
+            {key === 'chest_pain' && parq.chest_pain && (
+              <View style={styles.followup}>
+                <Txt variant="bodySm" style={{ marginBottom: 9 }}>{t('parq.chest_pain_rest')}</Txt>
+                {yesNo('chest_pain_rest')}
+              </View>
+            )}
+
+            {key === 'bone_joint' && parq.bone_joint && (
+              <View style={styles.followup}>
+                <HudLabel tone="red" style={{ fontSize: 12, marginBottom: 9 }}>{t('onboarding.screeningWhere')}</HudLabel>
+                <MultiChoice tone="red" values={limitations} onToggle={toggle}
+                  options={LIMITS.map((l) => ({ value: l, label: t(`limits.${l}` as TKey) }))} />
+              </View>
+            )}
+          </View>
+        ))}
+
+        {gender !== 'male' && (
+          <View style={[styles.card, parq.pregnancy && styles.cardFlagged]}>
+            <Txt variant="body" style={{ marginBottom: 11 }}>{t('parq.pregnancy')}</Txt>
+            {yesNo('pregnancy')}
           </View>
         )}
 
-        <SystemButton label="Continuar" onPress={submit} />
+        {result !== 'cleared' && (
+          <Note tone="red" icon={<IconAlert />}>
+            <Txt variant="bodySm" tone="dim">
+              {result === 'blocked'
+                ? t('onboarding.blockedExplain')
+                : t('onboarding.cautionExplain', { mode: t('onboarding.cautionMode') })}
+            </Txt>
+          </Note>
+        )}
+
+        <SystemButton label={renewing ? t('common.save') : t('common.continue')} onPress={submit} />
       </ScrollView>
     </Screen>
   );
@@ -141,20 +136,5 @@ const styles = StyleSheet.create({
   },
   card: { backgroundColor: color.surface, borderWidth: 1, borderColor: color.line, padding: 15 },
   cardFlagged: { backgroundColor: '#1C1030', borderColor: 'rgba(255,59,92,0.5)', borderLeftWidth: 3, borderLeftColor: color.red },
-  answerRow: { flexDirection: 'row', gap: 8 },
-  answer: { flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  answerText: { fontFamily: font.displayMedium, fontSize: 13, letterSpacing: 2 },
-  answerYesOn: { backgroundColor: color.red, borderColor: color.redText },
-  answerYesOff: { backgroundColor: color.redDim, borderColor: 'rgba(255,59,92,0.35)' },
-  answerNoOn: { backgroundColor: color.purple, borderColor: color.purpleLight },
-  answerNoOff: { backgroundColor: color.purpleDim, borderColor: color.purpleBorder },
-  followup: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,59,92,0.35)', borderStyle: 'dashed' },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  chip: { paddingHorizontal: 13, minHeight: 36, justifyContent: 'center', borderWidth: 1 },
-  chipOn: { backgroundColor: color.red, borderColor: color.red },
-  chipOff: { backgroundColor: color.purpleDim, borderColor: color.purpleBorder },
-  warning: {
-    flexDirection: 'row', gap: 10, alignItems: 'flex-start', padding: 13,
-    backgroundColor: color.redDim, borderWidth: 1, borderColor: 'rgba(255,59,92,0.30)',
-  },
+  followup: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,59,92,0.35)' },
 });

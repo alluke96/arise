@@ -1,121 +1,124 @@
-import { useState } from 'react';
-import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import {
-  HudLabel, IconAlert, IconCheck, IconLock, Screen, Txt, color, font, space,
+  Choice, HudLabel, IconAlert, IconCheck, IconLock, Note, Screen, Txt, color, font, space,
 } from '../../src/ui';
-import { EXERCISES, ladderFor } from '../../src/data/exercises';
-import { isPrescribable } from '../../src/core/engine';
-import { useProgression } from '../../src/features/progression/store';
+import { useHunter } from '../../src/features/hunter/store';
+import { useLocale, useT } from '../../src/features/settings/store';
+import { EXERCISES, exerciseCriteria, exerciseCues, exerciseErrors, exerciseName, exercisesByPattern, systemName } from '../../src/data/exercises';
+import { isPrescribable, rankAtLeast } from '../../src/core/engine';
+import type { Exercise, Pattern } from '../../src/core/types';
+import type { TKey } from '../../src/core/i18n';
 
-const LIMIT_LABEL = {
-  knee: 'joelho', lower_back: 'lombar', shoulder: 'ombro',
-  wrist: 'punho', neck: 'pescoço',
-} as const;
+const PATTERNS: Pattern[] = [
+  'push_h', 'squat', 'core_anti_ext', 'pull_h', 'hinge', 'unilateral',
+  'push_v', 'pull_v', 'core_anti_rot', 'trunk_flex', 'carry', 'aerobic', 'mobility',
+];
 
 export default function CodiceScreen() {
-  const { profile, progression } = useProgression();
-  const [query, setQuery] = useState('flexão');
+  const t = useT();
+  const locale = useLocale();
+  const { profile, progression, ladder } = useHunter();
+  const [pattern, setPattern] = useState<Pattern>('push_h');
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState<string | null>(null);
 
-  const ladder = ladderFor('push_knee');
-  const matches = EXERCISES.filter((e) =>
-    e.namePt.toLowerCase().includes(query.toLowerCase()));
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return null;
+    return EXERCISES.filter((e) => exerciseName(e, locale).toLowerCase().includes(q)
+      || e.namePt.toLowerCase().includes(q) || e.nameEn.toLowerCase().includes(q));
+  }, [query, locale]);
+
+  const list = matches ?? exercisesByPattern(pattern);
+  const currentId = ladder[pattern]?.exerciseId;
+  const currentDifficulty = EXERCISES.find((e) => e.id === currentId)?.difficulty ?? 0;
+  const limitations = profile?.limitations ?? [];
+
+  const stateOf = (e: Exercise) => {
+    if (!isPrescribable(e)) return 'noIllustration' as const;
+    if (e.contraindications.some((c) => limitations.includes(c))) return 'contraindicated' as const;
+    if (!rankAtLeast(progression.rank, e.minRank)) return 'rankLocked' as const;
+    if (e.id === currentId) return 'current' as const;
+    if (!matches && e.difficulty < currentDifficulty) return 'mastered' as const;
+    return 'available' as const;
+  };
 
   return (
     <Screen edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View>
-          <Txt variant="title">Códice</Txt>
-          <Txt variant="bodySm" tone="dim" style={{ marginTop: 4 }}>
-            {EXERCISES.length} exercícios no seed · escada de progressão completa
-          </Txt>
+          <Txt variant="title" accessibilityRole="header">{t('codex.title')}</Txt>
+          <Txt variant="bodySm" tone="dim" style={{ marginTop: 4 }}>{t('codex.subtitle', { count: EXERCISES.length })}</Txt>
         </View>
 
         <View style={styles.search}>
-          <TextInput
-            accessibilityLabel="Buscar exercício"
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Buscar"
-            placeholderTextColor={color.textMuted}
-            style={styles.searchInput}
-          />
-          <Txt variant="bodySm" tone="muted">{matches.length}</Txt>
+          <TextInput accessibilityLabel={t('codex.search')} value={query} onChangeText={setQuery}
+            placeholder={t('codex.search')} placeholderTextColor={color.textMuted} style={styles.searchInput} />
         </View>
 
-        <HudLabel tone="muted">Escada da flexão</HudLabel>
+        {!matches && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+            <Choice<Pattern> value={pattern} onChange={(p) => { setPattern(p); setOpen(null); }}
+              options={PATTERNS.map((p) => ({ value: p, label: t(`patterns.${p}` as TKey) }))} />
+          </ScrollView>
+        )}
 
-        {ladder.map((ex, i) => {
-          const blocked = !isPrescribable(ex);
-          const isCurrent = ex.id === 'push_knee';
-          const mastered = i < ladder.findIndex((e) => e.id === 'push_knee');
+        <HudLabel tone="muted">
+          {matches ? t('codex.results', { count: matches.length }) : t('codex.ladderOf', { pattern: t(`patterns.${pattern}` as TKey) })}
+        </HudLabel>
 
+        {list.map((ex, i) => {
+          const state = stateOf(ex);
+          const expanded = open === ex.id;
+          const dim = state === 'noIllustration' || state === 'contraindicated' || state === 'rankLocked';
           return (
-            <View key={ex.id} style={[
-              styles.step,
-              isCurrent && styles.stepCurrent,
-              mastered && styles.stepMastered,
-              blocked && styles.stepBlocked,
-            ]}>
-              <View style={[
-                styles.stepNum,
-                isCurrent && styles.stepNumCurrent,
-                mastered && styles.stepNumMastered,
-                blocked && styles.stepNumBlocked,
-              ]}>
-                <Txt variant="bodySm" tone={isCurrent ? 'default' : mastered ? 'green' : blocked ? 'locked' : 'purple'}
-                  style={{ fontFamily: font.displayMedium, fontSize: 13 }}>
-                  {i + 1}
-                </Txt>
+            <Pressable key={ex.id} accessibilityRole="button" accessibilityState={{ expanded }}
+              onPress={() => setOpen(expanded ? null : ex.id)}
+              style={[styles.step, state === 'current' && styles.stepCurrent, state === 'mastered' && styles.stepMastered, dim && styles.stepBlocked]}>
+              <View style={styles.stepHead}>
+                <View style={[styles.num, state === 'current' && styles.numCurrent]}>
+                  <Txt variant="bodySm" tone={state === 'current' ? 'default' : dim ? 'locked' : 'purple'}
+                    style={{ fontFamily: font.displayMedium, fontSize: 13 }}>{matches ? ex.difficulty : i + 1}</Txt>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Txt variant="bodySm" tone={dim ? 'locked' : 'default'} style={{ fontSize: 14.5 }}>{exerciseName(ex, locale)}</Txt>
+                  <Txt variant="bodySm" tone={state === 'current' ? 'blue' : 'muted'} style={{ fontSize: 11.5, marginTop: 2 }}>
+                    {t(`codex.state.${state}` as TKey, { rank: ex.minRank, name: systemName(ex, locale) })}
+                  </Txt>
+                </View>
+                {state === 'mastered' && <IconCheck />}
+                {dim && <IconLock />}
               </View>
 
-              <View style={{ flex: 1 }}>
-                <Txt variant="bodySm" tone={blocked ? 'locked' : 'default'} style={{ fontSize: 14.5 }}>
-                  {ex.namePt}
-                </Txt>
-                <Txt variant="bodySm" tone={isCurrent ? 'blue' : blocked ? 'locked' : 'muted'}
-                  style={{ fontSize: 11.5, marginTop: 2 }}>
-                  {blocked
-                    ? 'Bloqueado — sem par de ilustrações'
-                    : isCurrent
-                      ? `Atual · ${ex.systemNamePt}`
-                      : mastered
-                        ? 'Dominado'
-                        : ex.progressionCriteria}
-                </Txt>
-              </View>
-
-              {mastered && <IconCheck />}
-              {blocked && <IconLock />}
-              {isCurrent && (
-                <View style={styles.activeTag}>
-                  <HudLabel tone="blue" style={{ fontSize: 10 }}>Ativo</HudLabel>
+              {expanded && (
+                <View style={styles.detail}>
+                  <HudLabel tone="blue" style={{ fontSize: 10 }}>{t('codex.cues')}</HudLabel>
+                  {exerciseCues(ex, locale).map((c) => <Txt key={c} variant="bodySm" tone="dim">· {c}</Txt>)}
+                  <HudLabel tone="red" style={{ fontSize: 10, marginTop: 8 }}>{t('codex.commonErrors')}</HudLabel>
+                  {exerciseErrors(ex, locale).map((c) => <Txt key={c} variant="bodySm" tone="dim">· {c}</Txt>)}
+                  <HudLabel tone="muted" style={{ fontSize: 10, marginTop: 8 }}>{t('codex.criteria')}</HudLabel>
+                  <Txt variant="bodySm" tone="dim">{exerciseCriteria(ex, locale)}</Txt>
                 </View>
               )}
-            </View>
+            </Pressable>
           );
         })}
 
-        {/* R11.4 visível em produto: o exercício sem ilustração não é
-            apenas escondido — ele é mostrado bloqueado, com o motivo. */}
-        <View style={styles.rule}>
-          <IconAlert />
-          <Txt variant="bodySm" tone="dim" style={{ flex: 1 }}>
-            Exercício de carga sem par de ilustrações fica bloqueado e não é prescrito.
-            Cue de texto não ensina forma para quem nunca treinou.
-          </Txt>
-        </View>
+        <Note tone="red" icon={<IconAlert />}>
+          <Txt variant="bodySm" tone="dim">{t('codex.illustrationRule')}</Txt>
+        </Note>
 
-        {profile.limitations.length > 0 && (
-          <View style={styles.adapted}>
-            <HudLabel tone="red" style={{ fontSize: 10.5, marginBottom: 5 }}>Adaptado para você</HudLabel>
+        {limitations.length > 0 && (
+          <Note>
+            <HudLabel tone="blue" style={{ fontSize: 10.5, marginBottom: 5 }}>{t('codex.adaptedForYou')}</HudLabel>
             <Txt variant="bodySm" tone="dim">
-              Você marcou{' '}
-              <Txt variant="bodySm" tone="default">
-                {profile.limitations.map((l) => LIMIT_LABEL[l]).join(', ')}
-              </Txt>{' '}
-              na triagem. O Sistema removeu os exercícios contraindicados do Rank {progression.rank}.
+              {t('codex.adaptedBody', {
+                limits: limitations.map((l) => t(`limits.${l}` as TKey).toLowerCase()).join(', '),
+                rank: progression.rank,
+              })}
             </Txt>
-          </View>
+          </Note>
         )}
       </ScrollView>
     </Screen>
@@ -124,32 +127,14 @@ export default function CodiceScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: space.lg, paddingBottom: 40, gap: space.md },
-  search: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, height: 48, paddingHorizontal: 14,
-    backgroundColor: color.surface, borderWidth: 1, borderColor: color.purpleBorder,
-  },
-  searchInput: { flex: 1, color: color.text, fontSize: 15, fontFamily: font.body },
-  step: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderWidth: 1 },
-  stepCurrent: {
-    backgroundColor: color.blueDim, borderColor: color.blue,
-    shadowColor: color.blue, shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: 0 },
-  },
+  search: { height: 48, paddingHorizontal: 14, justifyContent: 'center', backgroundColor: color.surface, borderWidth: 1, borderColor: color.purpleBorder },
+  searchInput: { color: color.text, fontSize: 15, fontFamily: font.body },
+  step: { padding: 12, borderWidth: 1, borderColor: color.line, backgroundColor: color.surface },
+  stepHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  stepCurrent: { backgroundColor: color.blueDim, borderColor: color.blue },
   stepMastered: { backgroundColor: color.greenDim, borderColor: color.greenBorder },
   stepBlocked: { backgroundColor: color.surfaceAlt, borderColor: 'rgba(139,92,246,0.16)' },
-  stepNum: {
-    width: 30, height: 30, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: color.purpleDim, borderWidth: 1, borderColor: color.purpleBorder,
-  },
-  stepNumCurrent: { backgroundColor: color.blue, borderColor: color.blue },
-  stepNumMastered: { backgroundColor: 'rgba(74,222,128,0.12)', borderColor: color.greenBorder },
-  stepNumBlocked: { backgroundColor: 'rgba(139,92,246,0.07)', borderColor: 'rgba(139,92,246,0.22)' },
-  activeTag: { paddingHorizontal: 8, paddingVertical: 4, backgroundColor: 'rgba(125,211,252,0.16)' },
-  rule: {
-    flexDirection: 'row', gap: 10, alignItems: 'flex-start', padding: 13,
-    backgroundColor: color.redDim, borderWidth: 1, borderColor: 'rgba(255,59,92,0.28)',
-  },
-  adapted: {
-    padding: 14, backgroundColor: color.surface,
-    borderLeftWidth: 2, borderLeftColor: color.purpleLight,
-  },
+  num: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center', backgroundColor: color.purpleDim, borderWidth: 1, borderColor: color.purpleBorder },
+  numCurrent: { backgroundColor: color.blue, borderColor: color.blue },
+  detail: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: color.line, gap: 4 },
 });

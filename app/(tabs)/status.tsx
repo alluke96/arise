@@ -1,52 +1,88 @@
-import { useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import {
-  HudLabel, IconClock, IconFlame, IconStone, RadarChart, RankBadge,
-  Screen, StatBar, SystemWindow, Txt, color, space,
+  HudLabel, IconAlert, IconClock, IconFlame, IconStone, Note, RadarChart, RankBadge,
+  Screen, StatBar, SystemButton, SystemWindow, Txt, color, space,
 } from '../../src/ui';
-import { useProgression } from '../../src/features/progression/store';
-import { useQuest } from '../../src/features/quest/store';
-import { exerciseById } from '../../src/data/exercises';
-import { RANK_CRITERIA, levelProgress } from '../../src/core/engine';
+import { useHunter } from '../../src/features/hunter/store';
+import { useLocale, useSystemText, useT } from '../../src/features/settings/store';
+import { useCountdown } from '../../src/features/common/useCountdown';
+import { levelProgress } from '../../src/core/engine';
+import { formatNumber, type TKey } from '../../src/core/i18n';
+import { exerciseById, exerciseName } from '../../src/data/exercises';
+import type { Attribute } from '../../src/core/types';
 
-const ATTR_LABEL = {
-  STR: 'Força', AGI: 'Agilidade', VIT: 'Vitalidade',
-  PER: 'Percepção', INT: 'Inteligência',
-} as const;
+const ATTRS: Attribute[] = ['STR', 'AGI', 'VIT', 'PER', 'INT'];
 
 export default function StatusScreen() {
   const router = useRouter();
-  const { profile, progression, hydrate } = useProgression();
+  const t = useT();
+  const sys = useSystemText();
+  const locale = useLocale();
+  const h = useHunter();
+  const { profile, progression, quest, screening } = h;
   // Derivado no render, NÃO num selector: `levelProgress` monta objeto novo a
   // cada chamada, e o Zustand v5 compara snapshot por referência.
   const xp = levelProgress(progression);
-  const { quest, load } = useQuest();
+  const left = useCountdown(quest?.deadline);
 
-  useEffect(() => {
-    void hydrate();
-    void load();
-  }, [hydrate, load]);
+  if (!profile) return <Screen><View /></Screen>;
+
+  const done = quest?.status === 'completed';
+  const reentry = (h.streak?.reentrySessionsLeft ?? 0) > 0;
 
   return (
     <Screen edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-
         <View style={styles.header}>
-          <HudLabel tone="muted" style={{ fontSize: 10 }}>Associação de Caçadores</HudLabel>
+          <HudLabel tone="muted" style={{ fontSize: 10 }}>{t('status.association')}</HudLabel>
           <View style={styles.headerActions}>
             <Link href="/reavaliacao" asChild>
-              <Pressable accessibilityRole="button" accessibilityLabel="Reavaliação de Rank" hitSlop={12}>
-                <HudLabel tone="blue" style={{ fontSize: 10 }}>Reavaliar</HudLabel>
+              <Pressable accessibilityRole="button" hitSlop={12}>
+                <HudLabel tone="blue" style={{ fontSize: 10 }}>{t('status.reassess')}</HudLabel>
               </Pressable>
             </Link>
             <Link href="/ajustes" asChild>
-              <Pressable accessibilityRole="button" accessibilityLabel="Ajustes" hitSlop={12}>
-                <HudLabel tone="muted" style={{ fontSize: 10 }}>Ajustes</HudLabel>
+              <Pressable accessibilityRole="button" hitSlop={12}>
+                <HudLabel tone="muted" style={{ fontSize: 10 }}>{t('settings.title')}</HudLabel>
               </Pressable>
             </Link>
           </View>
         </View>
+
+        {h.screeningExpired && (
+          <Note tone="red" icon={<IconAlert />}>
+            <Txt variant="bodySm" tone="dim">{t('status.screeningExpired')}</Txt>
+            <Pressable accessibilityRole="button" onPress={() => router.push('/(onboarding)/triagem?renew=1')}
+              style={styles.inlineAction}>
+              <HudLabel tone="red">{t('status.redoScreening')}</HudLabel>
+            </Pressable>
+          </Note>
+        )}
+
+        {screening?.result === 'caution' && (
+          <Note tone="red" icon={<IconAlert />}>
+            <Txt variant="bodySm" tone="dim">{sys('cautionMode')}</Txt>
+          </Note>
+        )}
+
+        {h.dungeonBreak && (
+          <SystemWindow variant="alert" padding={16}>
+            <HudLabel tone="red">{t('penalty.dungeonBreak')}</HudLabel>
+            <Txt variant="bodySm" tone="dim" style={{ marginVertical: 8 }}>{t('penalty.dungeonBreakBody')}</Txt>
+            <SystemButton label={t('penalty.returnToField')} variant="danger" height={46}
+              onPress={h.dismissDungeonBreak} />
+          </SystemWindow>
+        )}
+
+        {h.penaltyOpenFor && (
+          <Pressable accessibilityRole="button" onPress={() => router.push('/penalidade')}>
+            <SystemWindow variant="alert" padding={16}>
+              <HudLabel tone="red">{t('status.penaltyOpen')}</HudLabel>
+              <Txt variant="bodySm" tone="dim" style={{ marginTop: 6 }}>{sys('penaltyOpened')}</Txt>
+            </SystemWindow>
+          </Pressable>
+        )}
 
         <SystemWindow padding={17}>
           <View style={styles.hunterRow}>
@@ -54,12 +90,12 @@ export default function StatusScreen() {
             <View style={styles.hunterInfo}>
               <Txt variant="title" style={{ fontSize: 18 }}>{profile.hunterName}</Txt>
               <Txt variant="bodySm" tone="muted" style={{ marginTop: 3 }}>
-                {RANK_CRITERIA[progression.rank].titlePt}
+                {t(`ranks.${progression.rank}` as TKey)}
               </Txt>
               <View style={styles.xpRow}>
-                <HudLabel tone="blue" style={{ fontSize: 12 }}>Nível {progression.level}</HudLabel>
+                <HudLabel tone="blue" style={{ fontSize: 12 }}>{t('status.level', { level: progression.level })}</HudLabel>
                 <Txt variant="bodySm" tone="muted">
-                  {xp.current.toLocaleString('pt-BR')} / {xp.needed.toLocaleString('pt-BR')} XP
+                  {formatNumber(xp.current, locale)} / {formatNumber(xp.needed, locale)} XP
                 </Txt>
               </View>
               <StatBar ratio={xp.ratio} />
@@ -69,75 +105,95 @@ export default function StatusScreen() {
           <View style={styles.divider} />
 
           <View style={styles.attrRow}>
-            <RadarChart values={progression.attributes} size={128} />
+            <RadarChart values={progression.attributes} size={128}
+              labels={ATTRS.map((a) => t(`status.attributesShort.${a}` as TKey))} />
             <View style={styles.attrList}>
-              {(Object.keys(ATTR_LABEL) as (keyof typeof ATTR_LABEL)[]).map((k) => (
+              {ATTRS.map((k) => (
                 <View key={k} style={styles.attrItem}>
-                  <Txt variant="bodySm" tone="dim" style={{ fontSize: 13 }}>{ATTR_LABEL[k]}</Txt>
+                  <Txt variant="bodySm" tone="dim" style={{ fontSize: 13 }}>{t(`status.attributes.${k}` as TKey)}</Txt>
                   <Txt variant="stat" style={{ fontSize: 16 }}>{progression.attributes[k]}</Txt>
                 </View>
               ))}
             </View>
           </View>
+          {progression.unspentPoints > 0 && (
+            <Txt variant="bodySm" tone="blue" style={{ marginTop: 12 }}>
+              {t('status.unspentPoints', { count: progression.unspentPoints })}
+            </Txt>
+          )}
         </SystemWindow>
 
         <View style={styles.statsRow}>
           <View style={[styles.statCard, styles.statRed]}>
             <IconFlame />
             <View>
-              <Txt variant="stat" style={{ fontSize: 17 }}>{progression.streakCurrent} dias</Txt>
-              <Txt variant="bodySm" tone="dim" style={{ fontSize: 11 }}>sequência</Txt>
+              <Txt variant="stat" style={{ fontSize: 17 }}>{progression.streakCurrent}</Txt>
+              <Txt variant="bodySm" tone="dim" style={{ fontSize: 11 }}>{t('status.streak')}</Txt>
             </View>
           </View>
           <View style={[styles.statCard, styles.statBlue]}>
             <IconStone />
             <View style={{ flex: 1 }}>
               <Txt variant="stat" style={{ fontSize: 17 }}>{progression.recoveryStones}</Txt>
-              <Txt variant="bodySm" tone="dim" style={{ fontSize: 11 }}>pedras de recuperação</Txt>
+              <Txt variant="bodySm" tone="dim" style={{ fontSize: 11 }}>{t('status.recoveryStones')}</Txt>
             </View>
           </View>
         </View>
 
-        <Pressable onPress={() => router.push('/missao')} accessibilityRole="button">
-          <SystemWindow variant="highlight" padding={17}>
-            <View style={styles.questHeader}>
-              <HudLabel tone="blue">Missão diária</HudLabel>
-              <View style={styles.deadline}>
-                <IconClock />
-                <Txt variant="bodyStrong" tone="red" style={{ fontSize: 13 }}>6h 12min</Txt>
-              </View>
-            </View>
-
-            {quest?.objectives.map((o) => {
-              const ex = exerciseById(o.exerciseId);
-              const done = o.actualValue >= o.targetValue;
-              const ratio = o.targetValue > 0 ? o.actualValue / o.targetValue : 0;
-              return (
-                <View key={o.exerciseId} style={styles.objective}>
-                  <View style={styles.objectiveRow}>
-                    <Txt variant="bodySm" style={{ fontSize: 13 }}>{ex?.namePt ?? o.exerciseId}</Txt>
-                    <Txt variant="bodySm" tone={done ? 'green' : 'dim'} style={{ fontSize: 12 }}>
-                      {o.actualValue} / {o.targetValue}{o.unit === 'seconds' ? 's' : o.unit === 'minutes' ? ' min' : ''}
+        {quest && (
+          <Pressable accessibilityRole="button" onPress={() => router.push('/missao')}>
+            <SystemWindow variant="highlight" padding={17}>
+              <View style={styles.questHeader}>
+                <HudLabel tone="blue">{quest.isRestDay ? t('status.restDay') : t('quest.daily')}</HudLabel>
+                {!done && !quest.isRestDay && (
+                  <View style={styles.deadline}>
+                    <IconClock />
+                    <Txt variant="bodyStrong" tone="red" style={{ fontSize: 13 }}>
+                      {left.hours}h {left.minutes}min
                     </Txt>
                   </View>
-                  <StatBar ratio={ratio} height={4} glow={false}
-                    fill={done ? color.green : color.purpleLight} />
+                )}
+              </View>
+
+              {done ? (
+                <Txt variant="body" tone="green">
+                  {t('status.questDone', { xp: quest.xpAwarded ?? 0 })}
+                </Txt>
+              ) : quest.isRestDay ? (
+                <Txt variant="bodySm" tone="dim">{sys('restDay')}</Txt>
+              ) : (
+                <>
+                  {quest.isDeload && <Txt variant="bodySm" tone="blue" style={{ marginBottom: 10 }}>{sys('deloadWeek')}</Txt>}
+                  {reentry && <Txt variant="bodySm" tone="blue" style={{ marginBottom: 10 }}>{t('status.reentry')}</Txt>}
+                  {quest.objectives.map((o) => {
+                    const ex = exerciseById(o.exerciseId);
+                    const ok = o.actualValue >= o.targetValue;
+                    return (
+                      <View key={o.exerciseId} style={styles.objective}>
+                        <View style={styles.objectiveRow}>
+                          <Txt variant="bodySm" style={{ fontSize: 13, flex: 1 }}>{ex ? exerciseName(ex, locale) : o.exerciseId}</Txt>
+                          <Txt variant="bodySm" tone={ok ? 'green' : 'dim'} style={{ fontSize: 12 }}>
+                            {o.actualValue} / {o.targetValue}{o.unit === 'seconds' ? 's' : o.unit === 'minutes' ? ' min' : ''}
+                          </Txt>
+                        </View>
+                        <StatBar ratio={o.targetValue ? o.actualValue / o.targetValue : 0} height={4} glow={false}
+                          fill={ok ? color.green : color.purpleLight} />
+                      </View>
+                    );
+                  })}
+                </>
+              )}
+
+              {!done && (
+                <View style={styles.cta}>
+                  <HudLabel style={{ fontSize: 13, letterSpacing: 2.4 }}>
+                    {quest.isRestDay ? t('status.honorRest') : t('quest.continueQuest')}
+                  </HudLabel>
                 </View>
-              );
-            })}
-
-            <View style={styles.cta}>
-              <HudLabel style={{ fontSize: 13, letterSpacing: 2.4 }}>Continuar missão</HudLabel>
-            </View>
-          </SystemWindow>
-        </Pressable>
-
-        <Link href="/penalidade" asChild>
-          <Pressable accessibilityRole="button" style={styles.penaltyLink}>
-            <Txt variant="bodySm" tone="muted">Ver Zona de Penalidade (demo)</Txt>
+              )}
+            </SystemWindow>
           </Pressable>
-        </Link>
-
+        )}
       </ScrollView>
     </Screen>
   );
@@ -147,6 +203,7 @@ const styles = StyleSheet.create({
   content: { padding: space.lg, paddingBottom: 40, gap: space.lg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerActions: { flexDirection: 'row', gap: 16 },
+  inlineAction: { marginTop: 8, minHeight: 32, justifyContent: 'center' },
   hunterRow: { flexDirection: 'row', alignItems: 'center', gap: 13 },
   hunterInfo: { flex: 1 },
   xpRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 8, marginBottom: 5 },
@@ -161,10 +218,6 @@ const styles = StyleSheet.create({
   questHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 13 },
   deadline: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   objective: { marginBottom: 10 },
-  objectiveRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 5 },
-  cta: {
-    height: 48, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: color.purple, marginTop: 4,
-  },
-  penaltyLink: { alignItems: 'center', paddingVertical: 8 },
+  objectiveRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 5, gap: 8 },
+  cta: { height: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: color.purple, marginTop: 6 },
 });

@@ -1,23 +1,25 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import { HudLabel } from '../../ui/Text';
+import { useT } from '../settings/store';
 import { color } from '../../ui/tokens';
 
-export const TOTAL_STEPS = 7;
+export const TOTAL_STEPS = 6;
 
 export function Steps({ current, onBack, badge }: {
   current: number;
   onBack?: () => void;
   badge?: React.ReactNode;
 }) {
+  const t = useT();
   return (
     <View style={styles.root}>
       <View style={styles.row}>
         <HudLabel tone="muted" style={{ fontSize: 11 }}>
-          Passo {current} de {TOTAL_STEPS}
+          {t('common.step', { current, total: TOTAL_STEPS })}
         </HudLabel>
         {badge ?? (onBack && (
-          <Pressable accessibilityRole="button" accessibilityLabel="Voltar" onPress={onBack} hitSlop={12}>
-            <HudLabel tone="blue" style={{ fontSize: 11 }}>Voltar</HudLabel>
+          <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')} onPress={onBack} hitSlop={12}>
+            <HudLabel tone="blue" style={{ fontSize: 11 }}>{t('common.back')}</HudLabel>
           </Pressable>
         ))}
       </View>

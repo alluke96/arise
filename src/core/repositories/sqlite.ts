@@ -172,8 +172,18 @@ export function createSqliteRepositories(db: SqlDriver): Repositories {
         const r = db.get<Row>('select onboarded from profile where id = 1');
         return (unbool(r?.onboarded ?? 0) ?? false) === true;
       },
-      async completeOnboarding() {
-        db.run('update profile set onboarded = 1, updated_at = ? where id = 1', [now()]);
+      async completeOnboarding(startedAt = now().slice(0, 10)) {
+        db.transaction(() => {
+          db.run('update profile set onboarded = 1, updated_at = ? where id = 1', [now()]);
+          db.run(
+            `insert into app_state (key, value) values ('started_at', ?)
+             on conflict(key) do nothing`, [startedAt],
+          );
+        });
+      },
+      async startedAt() {
+        const r = db.get<Row>("select value from app_state where key = 'started_at'");
+        return r ? String(r.value) : null;
       },
     },
 
@@ -237,6 +247,11 @@ export function createSqliteRepositories(db: SqlDriver): Repositories {
         const r = db.get<Row>('select * from daily_quest where quest_date = ?', [date]);
         return r ? toQuest(r) : null;
       },
+      async between(from, to) {
+        return db
+          .all<Row>('select * from daily_quest where quest_date between ? and ? order by quest_date', [from, to])
+          .map(toQuest);
+      },
       async save(q) {
         db.run(
           `insert into daily_quest (id, quest_date, rank, objectives, status, deadline,
@@ -251,34 +266,22 @@ export function createSqliteRepositories(db: SqlDriver): Repositories {
             bool(q.isDeload), bool(q.isRestDay), q.xpAwarded, now(), device()],
         );
       },
+      /**
+       * Lidas do LOG, não de uma tabela à parte: uma versão anterior lia
+       * `session_log`, e sessões vindas de um backup importado sumiam do
+       * histórico porque só existiam como evento.
+       */
       async recentSessions(limit) {
-        return db
-          .all<Row>('select * from session_log order by occurred_at desc limit ?', [limit])
-          .reverse()
-          .map((r): SessionSummary => ({
-            date: String(r.occurred_at).slice(0, 10),
-            durationMin: Number(r.duration_min),
-            avgRpe: Number(r.avg_rpe) as SessionSummary['avgRpe'],
-            completion: r.completion as SessionSummary['completion'],
-            resistedVolume: Number(r.resisted_volume),
-            aerobicMinutes: Number(r.aerobic_minutes),
-            formOkRatio: Number(r.form_ok_ratio),
-          }));
+        return readEvents()
+          .filter((e): e is Extract<DomainEvent, { kind: 'session_completed' }> =>
+            e.kind === 'session_completed' && !e.session.rest)
+          .map((e) => e.session)
+          .slice(-limit);
       },
       async addSession(s) {
-        const id = newId();
-        db.transaction(() => {
-          db.run(
-            `insert into session_log (id, occurred_at, duration_min, avg_rpe, completion,
-               resisted_volume, aerobic_minutes, form_ok_ratio)
-             values (?,?,?,?,?,?,?,?)`,
-            [id, `${s.date}T12:00:00.000Z`, s.durationMin, s.avgRpe, s.completion,
-              s.resistedVolume, s.aerobicMinutes, s.formOkRatio],
-          );
-          appendEvent({
-            id, at: `${s.date}T12:00:00.000Z`, deviceId: device(),
-            kind: 'session_completed', session: s,
-          });
+        appendEvent({
+          id: newId(), at: `${s.date}T12:00:00.000Z`, deviceId: device(),
+          kind: 'session_completed', session: s,
         });
         refoldProgression();
       },
@@ -348,6 +351,26 @@ export function createSqliteRepositories(db: SqlDriver): Repositories {
         });
       },
       async refold() { return refoldProgression(); },
+    },
+
+    app: {
+      async wipe() {
+        db.transaction(() => {
+          for (const t of [
+            'set_log', 'session_log', 'domain_event', 'daily_quest', 'health_screening',
+            'shadow_state', 'pain_log', 'body_metric', 'health_sample', 'progression_cache',
+            'profile', 'app_state',
+          ]) db.run(`delete from ${t}`);
+        });
+      },
+      async getValue(key) {
+        const r = db.get<Row>('select value from app_state where key = ?', [key]);
+        return r ? String(r.value) : null;
+      },
+      async setValue(key, value) {
+        db.run(`insert into app_state (key, value) values (?, ?)
+                on conflict(key) do update set value = excluded.value`, [key, value]);
+      },
     },
   };
 }

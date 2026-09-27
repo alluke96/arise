@@ -27,7 +27,7 @@ que sincronizar. As tarefas 1–4 abaixo não dependem disso e já foram feitas.
 > treino — deixado explicitamente pendente em vez de entregue sem verificação.
 
 - [x] **5. Fila de mutações persistente, com recuo exponencial** — lógica pura em `src/core/sync/queue.ts`, com teste de que falha nunca descarta evento — _Req: B3.3, B3.5, B3.8_
-- [ ] **6. Cliente Supabase e push por delta com upsert idempotente** — _Req: B3.4, B2.5_
+- [ ] **6. Cliente Supabase e push por delta com upsert idempotente** — parcial: `eventToRow` (evento → linha, puro) com teste de contrato contra as migrations; migration 0003 troca a chave dos eventos para `(user_id, id)` em texto, o que aceita os ids determinísticos e torna o reenvio `on conflict do nothing` (coberto no `db:test`). Falta o cliente HTTP, que exige projeto provisionado — _Req: B3.4, B2.5_
 - [ ] **7. Pull por cursor com paginação e re-fold** — _Req: B3.4, B3.6_
 - [ ] **8. Sincronização em segundo plano, fora do caminho crítico** — _Req: B3.1, B3.2_
 - [x] **9. Indicador de estado da sincronização em Configurações** — _Req: B3.7_

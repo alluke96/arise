@@ -1,11 +1,24 @@
-import type {
-  DailyQuest, HealthScreening, PainLogEntry, Progression,
-  SessionSummary, UserProfile,
-} from '../../core/types';
+import {
+  addDays, buildQuestInput, completeQuest, eventId, generateDailyQuest, isTrainingDay, reconcile,
+} from '../../core/engine';
+import type { DomainEvent } from '../../core/sync/events';
+import type { DailyQuest, HealthScreening, UserProfile } from '../../core/types';
+import { EXERCISES } from '../exercises';
+import { SHADOW_RULES } from '../shadowRules';
 
-/** Estado de demonstração: o mesmo caçador do mock visual — Rank D,
- *  nível 14, 23 dias de sequência, 7 sombras extraídas. */
-
+/**
+ * Caçador de demonstração.
+ *
+ * Não é um estado escrito à mão: é um LOG DE EVENTOS gerado pelo próprio
+ * motor, simulando sete semanas de uso pelo mesmo caminho que o app percorre
+ * (reconciliar → montar contexto → gerar missão → concluir). Por isso é
+ * coerente por construção — nível, sequência, escada e sombras batem entre
+ * si porque saíram das mesmas funções.
+ *
+ * Uma versão anterior guardava um "nível 14" solto num objeto; como a
+ * progressão é recalculada a partir do log, concluir qualquer missão no modo
+ * demo derrubava o caçador para o nível 1.
+ */
 export const DEMO_PROFILE: UserProfile = {
   hunterName: 'ALLYSON',
   age: 28,
@@ -19,80 +32,100 @@ export const DEMO_PROFILE: UserProfile = {
   preferredTime: '19:00',
   location: 'home',
   equipment: ['none', 'band'],
-  limitations: ['wrist'],
+  limitations: [],
   units: { mass: 'kg', length: 'cm' },
   locale: 'pt-BR',
   systemTone: 'cold',
 };
 
-export const DEMO_PROGRESSION: Progression = {
-  level: 14,
-  // Mantido dentro da faixa do nível 14: xpForLevel(14)=4591, xpForLevel(15)=5074.
-  // 4915 → 324/483 na barra (67%), igual ao mock visual. Um valor acima de 5074
-  // significaria que `applyXp` não rodou, e a barra estouraria.
-  xp: 4915,
-  rank: 'D',
-  attributes: { STR: 27, AGI: 19, VIT: 34, PER: 22, INT: 12 },
-  unspentPoints: 3,
-  streakCurrent: 23,
-  streakBest: 23,
-  recoveryStones: 2,
-};
+export const DEMO_WEEKS = 7;
 
-export const DEMO_SCREENING: HealthScreening = {
-  date: '2026-08-01',
-  answers: {
-    heart_condition: false, chest_pain_activity: false, chest_pain_rest: false,
-    dizziness: false, bone_joint: true, blood_pressure_meds: false, other_reason: false,
-  },
-  // Punho declarado na triagem → limitação que filtra exercícios, mas sem
-  // bandeira que exija Modo Prudência.
-  result: 'cleared',
-  restrictions: ['wrist'],
-  expiresAt: '2027-08-01',
-};
+export interface DemoState {
+  profile: UserProfile;
+  screening: HealthScreening;
+  startedAt: string;
+  events: DomainEvent[];
+  quests: DailyQuest[];
+}
 
-export const DEMO_PAIN_LOG: PainLogEntry[] = [];
+export function todayISO(now = new Date()): string {
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
 
-const session = (date: string, over: Partial<SessionSummary> = {}): SessionSummary => ({
-  date, durationMin: 20, avgRpe: 5, completion: 'complete',
-  resistedVolume: 380, aerobicMinutes: 22, formOkRatio: 0.85, ...over,
-});
+/** Sete semanas até ONTEM, relativas à data real, para o calendário bater. */
+export function buildDemo(today: string = todayISO()): DemoState {
+  const startedAt = addDays(today, -DEMO_WEEKS * 7);
+  const screening: HealthScreening = {
+    date: startedAt, answers: {}, result: 'cleared', restrictions: [],
+    expiresAt: addDays(startedAt, 365),
+  };
 
-export const DEMO_SESSIONS: SessionSummary[] = [
-  session('2026-09-09'), session('2026-09-11', { completion: 'complete_good_form' }),
-  session('2026-09-13'), session('2026-09-16', { resistedVolume: 410 }),
-  session('2026-09-18', { completion: 'complete_good_form', resistedVolume: 430 }),
-  session('2026-09-20', { resistedVolume: 445 }),
-];
+  let events: DomainEvent[] = [{
+    id: 'placement', at: `${startedAt}T12:00:00.000Z`, deviceId: 'demo',
+    kind: 'benchmark_passed', rankAfter: 'E',
+  }];
+  const quests: DailyQuest[] = [];
 
-export const DEMO_TODAY = '2026-09-21';
-export const DEMO_WEEK_INDEX = 6;
-export const DEMO_LAST_WEEK_VOLUME = 1285;
+  // Um tropeço realista: perde um treino na semana 3 e cumpre a Zona de
+  // Penalidade no dia seguinte.
+  let missedOnce = false;
 
-/** Progresso parcial do dia, para a tela de Status não nascer vazia. */
-export const DEMO_PARTIAL: Record<string, number> = {
-  push_knee: 18,
-  squat_partial: 30,
-  plank_full: 0,
-  walk_brisk: 14,
-  row_band: 0,
-};
+  for (let d = addDays(startedAt, 1); d < today; d = addDays(d, 1)) {
+    events = [...events, ...reconcile({ events, today: d, daysPerWeek: 3, startedAt, deviceId: 'demo' }).toAppend];
 
-export function applyDemoProgress(quest: DailyQuest): DailyQuest {
+    // Reavaliação aprovada na semana 6: sobe do E para o D.
+    if (d === addDays(startedAt, 42)) {
+      events = [...events, {
+        id: 'bench-week-6', at: `${d}T09:00:00.000Z`, deviceId: 'demo',
+        kind: 'benchmark_passed', rankAfter: 'D',
+      }];
+    }
+
+    if (!isTrainingDay(d, DEMO_PROFILE.daysPerWeek)) continue;
+
+    const q = generateDailyQuest(buildQuestInput({
+      profile: DEMO_PROFILE, events, quests, pain: [], screening,
+      catalog: EXERCISES, startedAt, today: d,
+    }));
+
+    if (!missedOnce && d >= addDays(startedAt, 17)) {
+      missedOnce = true;
+      quests.push({ ...q, status: 'failed' });
+      events = [...events, {
+        id: eventId.penaltyDone(d), at: `${addDays(d, 1)}T08:30:00.000Z`,
+        deviceId: 'demo', kind: 'penalty_completed',
+      }];
+      continue;
+    }
+
+    const done: DailyQuest = {
+      ...q,
+      status: 'completed',
+      objectives: q.objectives.map((o) => ({
+        ...o, actualValue: o.targetValue, rpe: 5 as const, formOk: true, completedAt: `${d}T19:30:00`,
+      })),
+    };
+    quests.push(done);
+    events = [...events, ...completeQuest({
+      quest: done, catalog: EXERCISES, events, deviceId: 'demo', durationMin: 18,
+      localHour: 19, rules: SHADOW_RULES, stats: { startedAt, today: d, daysPerWeek: 3 },
+    }).events];
+  }
+
+  return { profile: DEMO_PROFILE, screening, startedAt, events, quests };
+}
+
+/** Progresso parcial para a missão de hoje não nascer vazia no demo. */
+export function withPartialProgress(quest: DailyQuest): DailyQuest {
+  const fractions = [0.75, 1, 0, 0.55, 0];
   return {
     ...quest,
-    objectives: quest.objectives.map((o) => {
-      const actual = DEMO_PARTIAL[o.exerciseId] ?? 0;
-      const done = actual >= o.targetValue;
-      return {
-        ...o,
-        actualValue: Math.min(actual, o.targetValue),
-        rpe: done ? 5 : null,
-        formOk: done ? true : null,
-        completedAt: done ? `${quest.date}T18:40:00` : null,
-      };
-    }),
     status: 'partial',
+    objectives: quest.objectives.map((o, i) => {
+      const actual = Math.round(o.targetValue * (fractions[i] ?? 0));
+      const done = actual >= o.targetValue;
+      return { ...o, actualValue: actual, rpe: done ? 5 : null, formOk: done ? true : null };
+    }),
   };
 }

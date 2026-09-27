@@ -187,6 +187,16 @@ Tarefas em ordem de dependência. Cada uma referencia os requisitos que satisfaz
 
 ---
 
+## Revisão de integração (telas × motor)
+
+- [x] Todas as telas leem o store único `useHunter` (derivado do log de eventos) — nenhuma lê mock direto
+- [x] Onboarding em 6 passos: despertar, biometria, triagem, exame de aptidão, logística, contrato
+- [x] Exército: progresso real por sombra, próxima sombra calculada, motivos de indisponibilidade traduzidos
+- [x] Ajustes: tom, idioma e unidades persistidos; notificações reagendadas ao mudar; lesão declarada; refazer triagem; estado da assinatura; exportar/importar arquivo; apagar tudo de verdade
+- [x] Paywall usando o `useBilling` (loja falsa, rotulada na tela); missão e sessão bloqueadas sem direito de acesso
+- [x] i18n completo: toda chave dinâmica testada nos dois idiomas; placeholders idênticos entre pt-BR e en-US
+- [x] Conteúdo em inglês dos 80 exercícios e 40 sombras, com teste de completude
+
 ## Nota sobre a ordem
 
 As Fases 1 e 2 são deliberadamente separadas. O motor e a UI são escritos contra **interfaces de repositório**, então a Fase 2 troca a origem dos dados sem tocar em nenhuma tela. Se essa separação vazar — uma tela importando SQLite direto, por exemplo — a Fase 2 deixa de ser uma troca e vira uma reescrita.

@@ -15,6 +15,11 @@ export const INITIAL_PROGRESSION: Progression = {
   recoveryStones: 0,
 };
 
+/** Progressão de quem acabou de ser posicionado num rank. */
+export function INITIAL_PROGRESSION_FOR(rank: Progression['rank']): Progression {
+  return { ...INITIAL_PROGRESSION, rank, attributes: { ...INITIAL_PROGRESSION.attributes } };
+}
+
 /**
  * Entradas que não vêm do log de eventos: passos, sono e leitura vivem em
  * integrações de saúde e conteúdo, não em fatos de treino.

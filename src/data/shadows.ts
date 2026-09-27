@@ -1,4 +1,5 @@
 import type { Shadow } from '../core/types';
+import { SHADOWS_EN } from './shadows.en';
 
 /**
  * 40 sombras.
@@ -11,19 +12,18 @@ type Grade = Shadow['grade'];
 
 interface S {
   id: string; pt: string; en: string; grade: Grade; cond: string; perk: string;
-  unlockedAt?: string;
 }
 
 const SPECS: S[] = [
   // ── Soldado — primeiras semanas, o período de maior abandono ──────────────
   { id: 'sentinela', pt: 'Sentinela', en: 'Sentinel', grade: 'soldier',
-    cond: 'Primeira missão concluída', perk: 'Desbloqueia customização de notificação', unlockedAt: '2026-08-02' },
+    cond: 'Primeira missão concluída', perk: 'Desbloqueia customização de notificação' },
   { id: 'batedor', pt: 'Batedor', en: 'Scout', grade: 'soldier',
-    cond: '7 dias de sequência', perk: '+10% de XP por 7 dias', unlockedAt: '2026-08-09' },
+    cond: '7 dias de sequência', perk: '+10% de XP por 7 dias' },
   { id: 'sabujo', pt: 'Sabujo', en: 'Hound', grade: 'soldier',
-    cond: '10.000 passos em um dia', perk: 'Widget de passos na tela de Status', unlockedAt: '2026-08-14' },
+    cond: '10.000 passos em um dia', perk: 'Widget de passos na tela de Status' },
   { id: 'arauto', pt: 'Arauto', en: 'Herald', grade: 'soldier',
-    cond: 'Ler 3 artigos do Códice', perk: 'Desbloqueia explicações avançadas', unlockedAt: '2026-08-18' },
+    cond: 'Ler 3 artigos do Códice', perk: 'Desbloqueia explicações avançadas' },
   { id: 'lanceiro', pt: 'Lanceiro', en: 'Lancer', grade: 'soldier',
     cond: 'Concluir 10 sessões', perk: 'Desbloqueia o histórico em gráfico' },
   { id: 'vigia_noturno', pt: 'Vigia Noturno', en: 'Night Watch', grade: 'soldier',
@@ -35,11 +35,11 @@ const SPECS: S[] = [
 
   // ── Elite — o hábito começou a pegar ──────────────────────────────────────
   { id: 'guarda', pt: 'Guarda', en: 'Warden', grade: 'elite',
-    cond: '30 sessões concluídas', perk: 'Desbloqueia editor manual do plano', unlockedAt: '2026-09-01' },
+    cond: '30 sessões concluídas', perk: 'Desbloqueia editor manual do plano' },
   { id: 'vigia', pt: 'Vigia', en: 'Watcher', grade: 'elite',
-    cond: '4 semanas sem pular dia de treino', perk: '+1 Pedra de Recuperação por mês', unlockedAt: '2026-09-12' },
+    cond: '4 semanas sem pular dia de treino', perk: '+1 Pedra de Recuperação por mês' },
   { id: 'ferreiro', pt: 'Ferreiro', en: 'Smith', grade: 'elite',
-    cond: 'Progredir em 5 exercícios diferentes', perk: 'Mostra a escada completa no Códice', unlockedAt: '2026-09-15' },
+    cond: 'Progredir em 5 exercícios diferentes', perk: 'Mostra a escada completa no Códice' },
   { id: 'sobrevivente', pt: 'Sobrevivente', en: 'Survivor', grade: 'elite',
     cond: 'Concluir 3 Zonas de Penalidade', perk: 'Zona de Penalidade passa a oferecer escolha de exercício' },
   { id: 'retornado', pt: 'Retornado', en: 'Returned', grade: 'elite',
@@ -115,7 +115,8 @@ export const SHADOWS: Shadow[] = SPECS.map((s) => ({
   grade: s.grade,
   conditionPt: s.cond,
   perkPt: s.perk,
-  unlockedAt: s.unlockedAt ?? null,
+  // Catálogo não guarda estado: quem desbloqueou o quê vem do log de eventos.
+  unlockedAt: null,
 }));
 
 export const GRADE_LABEL: Record<Grade, string> = {
@@ -129,3 +130,12 @@ export const GRADE_ORDER: Grade[] = [
 
 export const shadowById = (id: string): Shadow | undefined =>
   SHADOWS.find((s) => s.id === id);
+
+/** Texto da sombra no idioma ativo. Condição e benefício em inglês vêm de `shadows.en.ts`. */
+export function shadowText(s: Shadow, locale: 'pt-BR' | 'en-US'): { name: string; condition: string; perk: string } {
+  if (locale === 'en-US') {
+    const en = SHADOWS_EN[s.id];
+    return { name: s.nameEn, condition: en?.condition ?? s.conditionPt, perk: en?.perk ?? s.perkPt };
+  }
+  return { name: s.namePt, condition: s.conditionPt, perk: s.perkPt };
+}

@@ -16,7 +16,10 @@ export interface ProfileRepository {
   save(profile: UserProfile): Promise<void>;
   /** Decide entre o fluxo de onboarding e as abas na abertura do app. */
   isOnboarded(): Promise<boolean>;
-  completeOnboarding(): Promise<void>;
+  /** Marca o fim do onboarding e grava a data de início da jornada. */
+  completeOnboarding(startedAt?: string): Promise<void>;
+  /** Dia em que a jornada começou. Base da semana, das pedras e do calendário. */
+  startedAt(): Promise<string | null>;
 }
 
 export interface ProgressionRepository {
@@ -36,6 +39,8 @@ export interface ExerciseRepository {
 
 export interface QuestRepository {
   forDate(date: string): Promise<DailyQuest | null>;
+  /** Missões entre duas datas, inclusive. Base do teto semanal (R4.5). */
+  between(from: string, to: string): Promise<DailyQuest[]>;
   save(quest: DailyQuest): Promise<void>;
   recentSessions(limit: number): Promise<SessionSummary[]>;
   addSession(session: SessionSummary): Promise<void>;
@@ -65,6 +70,14 @@ export interface EventRepository {
   refold(): Promise<Progression>;
 }
 
+export interface AppRepository {
+  /** R12.8 — apaga tudo. Irreversível. */
+  wipe(): Promise<void>;
+  /** Estado do app que não é domínio: id do aparelho, preferências de notificação. */
+  getValue(key: string): Promise<string | null>;
+  setValue(key: string, value: string): Promise<void>;
+}
+
 export interface Repositories {
   profile: ProfileRepository;
   progression: ProgressionRepository;
@@ -74,4 +87,5 @@ export interface Repositories {
   shadows: ShadowRepository;
   pain: PainRepository;
   events: EventRepository;
+  app: AppRepository;
 }

@@ -9,8 +9,8 @@ const AXES: { key: Attribute; label: string }[] = [
 ];
 
 export function RadarChart({
-  values, size = 128,
-}: { values: Record<Attribute, number>; size?: number }) {
+  values, size = 128, labels,
+}: { values: Record<Attribute, number>; size?: number; labels?: string[] }) {
   const cx = size / 2;
   const cy = size / 2 + 2;
   const r = size * 0.4;
@@ -48,7 +48,7 @@ export function RadarChart({
         return (
           <SvgText key={a.label} x={x} y={y + 3} fill={color.textDim}
             fontSize={9} textAnchor="middle">
-            {a.label}
+            {labels?.[i] ?? a.label}
           </SvgText>
         );
       })}

@@ -2,7 +2,7 @@ import { EXERCISES, exerciseById } from '../../data/exercises';
 import { SHADOWS } from '../../data/shadows';
 import { INITIAL_PROGRESSION } from '../sync/fold';
 import { newId } from '../ids';
-import type { DomainEvent } from '../sync/events';
+import { normalizeEvents, type DomainEvent } from '../sync/events';
 import { foldProgression } from '../sync/fold';
 import type {
   DailyQuest, HealthScreening, PainLogEntry, Progression,
@@ -19,10 +19,11 @@ import type { Repositories } from './types';
 export interface MockSeed {
   profile?: UserProfile;
   onboarded?: boolean;
-  progression?: Progression;
+  startedAt?: string;
   screening?: HealthScreening;
-  sessions?: SessionSummary[];
-  pain?: PainLogEntry[];
+  /** O estado do caçador vem do LOG — progressão, sombras e dor são projeções. */
+  events?: DomainEvent[];
+  quests?: DailyQuest[];
 }
 
 /** Implementação em memória. Mesma interface que a SQLite implementa,
@@ -30,15 +31,14 @@ export interface MockSeed {
 export function createMockRepositories(seed: MockSeed = {}): Repositories {
   let profile: UserProfile | null = seed.profile ?? null;
   let onboarded = seed.onboarded ?? false;
-  let progression: Progression = seed.progression
-    ? { ...seed.progression }
-    : { ...INITIAL_PROGRESSION, attributes: { ...INITIAL_PROGRESSION.attributes } };
+  let startedAt: string | null = seed.startedAt ?? null;
+  let progression: Progression = { ...INITIAL_PROGRESSION, attributes: { ...INITIAL_PROGRESSION.attributes } };
   let screening: HealthScreening | null = seed.screening ?? null;
-  let sessions: SessionSummary[] = [...(seed.sessions ?? [])];
-  let pain: PainLogEntry[] = [...(seed.pain ?? [])];
+  let pain: PainLogEntry[] = [];
   let shadows: Shadow[] = SHADOWS.map((s) => ({ ...s }));
-  const quests = new Map<string, DailyQuest>();
-  let events: DomainEvent[] = [];
+  const quests = new Map<string, DailyQuest>((seed.quests ?? []).map((q) => [q.date, q]));
+  let events: DomainEvent[] = [...(seed.events ?? [])];
+  const state = new Map<string, string>();
   const synced = new Set<string>();
 
   function appendEvent(e: DomainEvent): void {
@@ -68,12 +68,18 @@ export function createMockRepositories(seed: MockSeed = {}): Repositories {
     return progression;
   }
 
+  rebuildProjections();
+
   return {
     profile: {
       async get() { return profile; },
       async save(p) { profile = p; },
       async isOnboarded() { return onboarded; },
-      async completeOnboarding() { onboarded = true; },
+      async completeOnboarding(date = new Date().toISOString().slice(0, 10)) {
+        onboarded = true;
+        startedAt = startedAt ?? date;
+      },
+      async startedAt() { return startedAt; },
     },
     progression: {
       async get() { return progression; },
@@ -89,14 +95,25 @@ export function createMockRepositories(seed: MockSeed = {}): Repositories {
     },
     quests: {
       async forDate(date) { return quests.get(date) ?? null; },
+      async between(from, to) {
+        return [...quests.values()].filter((q) => q.date >= from && q.date <= to)
+          .sort((a, b) => (a.date < b.date ? -1 : 1));
+      },
       async save(q) { quests.set(q.date, q); },
-      async recentSessions(limit) { return sessions.slice(-limit); },
+      async recentSessions(limit) {
+        return events
+          .filter((e): e is Extract<DomainEvent, { kind: 'session_completed' }> =>
+            e.kind === 'session_completed' && !e.session.rest)
+          .sort((a, b) => (a.at < b.at ? -1 : 1))
+          .map((e) => e.session)
+          .slice(-limit);
+      },
       async addSession(s) {
-        sessions = [...sessions, s];
         appendEvent({
           id: newId(), at: `${s.date}T12:00:00.000Z`, deviceId: 'mock',
           kind: 'session_completed', session: s,
         });
+        rebuildProjections();
       },
     },
     shadows: {
@@ -125,12 +142,21 @@ export function createMockRepositories(seed: MockSeed = {}): Repositories {
         appendEvent(e);
         rebuildProjections();
       },
-      async all() { return events; },
+      async all() { return normalizeEvents(events); },
       async unsynced(limit) {
-        return events.filter((e) => !synced.has(e.id)).slice(0, limit);
+        return normalizeEvents(events).filter((e) => !synced.has(e.id)).slice(0, limit);
       },
       async markSynced(ids) { for (const id of ids) synced.add(id); },
       async refold() { return rebuildProjections(); },
+    },
+    app: {
+      async wipe() {
+        profile = null; onboarded = false; startedAt = null; screening = null;
+        events = []; quests.clear(); synced.clear(); state.clear();
+        rebuildProjections();
+      },
+      async getValue(key) { return state.get(key) ?? null; },
+      async setValue(key, value) { state.set(key, value); },
     },
   };
 }

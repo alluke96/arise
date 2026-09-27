@@ -46,9 +46,11 @@ export function planNotifications(
   const deadline = Date.parse(quest.deadline);
 
   if (prefs.questAvailable) {
+    // Horário LOCAL, como o prazo. Uma versão anterior usava setUTCHours: quem
+    // escolheu 19h em São Paulo seria avisado às 16h.
     const [h, m] = preferredTime.split(':').map(Number);
-    const at = new Date(`${quest.date}T00:00:00.000Z`);
-    at.setUTCHours(h ?? 19, m ?? 0, 0, 0);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const at = new Date(`${quest.date}T${pad(h ?? 19)}:${pad(m ?? 0)}:00`);
     if (at.getTime() > nowMs) {
       out.push({ kind: 'quest_available', at: at.toISOString(), systemKey: 'questAvailable' });
     }

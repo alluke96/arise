@@ -1,96 +1,136 @@
-import { useEffect } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  HudLabel, IconBack, IconCheck, IconClock, IconStar, Screen, StatBar,
-  SystemButton, Txt, color, font, space,
+  HudLabel, IconCheck, IconClock, Screen, StatBar, SystemButton, SystemWindow, Txt, color, font, space,
 } from '../../src/ui';
-import { useQuest } from '../../src/features/quest/store';
-import { exerciseById } from '../../src/data/exercises';
+import { useHunter } from '../../src/features/hunter/store';
+import { useLocale, useSystemText, useT } from '../../src/features/settings/store';
+import { useCountdown } from '../../src/features/common/useCountdown';
+import { useBilling } from '../../src/features/billing/store';
+import { exerciseById, exerciseName, systemName } from '../../src/data/exercises';
 
-const UNIT_SUFFIX = { reps: '', seconds: 's', minutes: 'min', meters: 'm' } as const;
+const SUFFIX = { reps: '', seconds: 's', minutes: 'min', meters: 'm' } as const;
 
 export default function MissaoScreen() {
   const router = useRouter();
-  const { quest, load } = useQuest();
+  const t = useT();
+  const sys = useSystemText();
+  const locale = useLocale();
+  const { quest, completeToday } = useHunter();
+  const left = useCountdown(quest?.deadline);
+  // R13.5 — sem direito de acesso, a missão fica visível mas não inicia.
+  const canTrain = useBilling((s) => s.entitlement?.canTrain ?? true);
+  const openSession = (id: string) => {
+    if (!canTrain) router.push('/paywall');
+    else router.push({ pathname: '/sessao', params: { id } });
+  };
 
-  useEffect(() => { void load(); }, [load]);
+  if (!quest) return <Screen><View /></Screen>;
+
+  const done = quest.status === 'completed';
+  const started = quest.objectives.some((o) => o.actualValue > 0);
+  const next = quest.objectives.find((o) => o.actualValue < o.targetValue);
+
+  const finish = async () => {
+    const c = await completeToday();
+    if (c) router.push('/levelup');
+  };
+
+  const endDay = () => Alert.alert(t('quest.endSession'), t('quest.endSessionNote'), [
+    { text: t('common.cancel'), style: 'cancel' },
+    { text: t('quest.endSession'), onPress: () => { void finish(); } },
+  ]);
 
   return (
     <Screen edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Voltar"
-            onPress={() => router.push('/status')} hitSlop={12}>
-            <IconBack />
+      <ScrollView contentContainerStyle={styles.content}>
+        <HudLabel style={{ fontSize: 17, letterSpacing: 2.4 }} accessibilityRole="header">{t('quest.daily')}</HudLabel>
+        {!canTrain && (
+          <Pressable accessibilityRole="button" onPress={() => router.push('/paywall')}>
+            <SystemWindow variant="alert" padding={14}>
+              <HudLabel tone="red">{t('billing.lockedTitle')}</HudLabel>
+              <Txt variant="bodySm" tone="dim" style={{ marginTop: 6 }}>{t('billing.lockedNote')}</Txt>
+            </SystemWindow>
           </Pressable>
-          <HudLabel style={{ fontSize: 17, letterSpacing: 2.4 }}>Missão Diária</HudLabel>
-        </View>
+        )}
 
         <View>
-          <HudLabel tone="muted">Quest</HudLabel>
-          <Txt variant="title" style={styles.questName}>
-            A Preparação Para Se Tornar Poderoso
-          </Txt>
+          <HudLabel tone="muted">{t('quest.questLabel')}</HudLabel>
+          <Txt variant="title" style={styles.questName}>{t('quest.canonicalName')}</Txt>
         </View>
 
-        <View style={styles.deadline}>
-          <View style={styles.deadlineLabel}>
-            <IconClock />
-            <Txt variant="bodySm" tone="dim" style={{ fontSize: 13 }}>Prazo</Txt>
+        {quest.isRestDay ? (
+          <View style={{ gap: space.md }}>
+            <Txt variant="body" tone="dim">{sys('restDay')}</Txt>
+            {!done && <SystemButton label={t('status.honorRest')} onPress={finish} />}
+            {done && <Txt variant="body" tone="green">{t('status.questDone', { xp: quest.xpAwarded ?? 0 })}</Txt>}
           </View>
-          <Txt variant="stat" tone="red" style={{ fontSize: 19 }}>6h 12min</Txt>
-        </View>
-
-        {quest?.objectives.map((o) => {
-          const ex = exerciseById(o.exerciseId);
-          const done = o.actualValue >= o.targetValue;
-          const ratio = o.targetValue > 0 ? o.actualValue / o.targetValue : 0;
-          return (
-            <Pressable
-              key={o.exerciseId}
-              accessibilityRole="button"
-              accessibilityLabel={`${ex?.namePt}. ${o.actualValue} de ${o.targetValue}`}
-              onPress={() => router.push({ pathname: '/sessao', params: { id: o.exerciseId } })}
-              style={[styles.objective, done ? styles.objectiveDone : styles.objectivePending]}
-            >
-              <View style={styles.objectiveHead}>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.nameRow}>
-                    <Txt variant="bodyStrong">{ex?.namePt ?? o.exerciseId}</Txt>
-                    {done && <IconCheck />}
-                  </View>
-                  <Txt variant="bodySm" tone="muted" style={{ marginTop: 2 }}>
-                    {done ? `Concluído · RPE ${o.rpe ?? '—'}` : ex?.systemNamePt}
-                  </Txt>
+        ) : (
+          <>
+            {!done && (
+              <View style={styles.deadline}>
+                <View style={styles.deadlineLabel}>
+                  <IconClock />
+                  <Txt variant="bodySm" tone="dim" style={{ fontSize: 13 }}>{t('quest.deadline')}</Txt>
                 </View>
-                <Txt variant="stat" tone={done ? 'green' : 'default'}>
-                  {o.actualValue}
-                  <Txt variant="stat" tone={done ? 'green' : 'muted'} style={{ fontSize: 14 }}>
-                    /{o.targetValue}{UNIT_SUFFIX[o.unit]}
-                  </Txt>
-                </Txt>
+                <Txt variant="stat" tone="red" style={{ fontSize: 19 }}>{left.hours}h {left.minutes}min</Txt>
               </View>
-              <StatBar ratio={ratio} glow={false}
-                fill={done ? color.green : color.purpleLight} />
-            </Pressable>
-          );
-        })}
+            )}
+            {quest.isDeload && <Txt variant="bodySm" tone="blue">{sys('deloadWeek')}</Txt>}
 
-        <View style={styles.reward}>
-          <IconStar />
-          <Txt variant="bodySm" tone="dim" style={{ flex: 1 }}>
-            Recompensa: <Txt variant="bodySm" tone="default">+3 pontos de atributo</Txt>, 180 XP e uma caixa de loot.
-          </Txt>
-        </View>
+            {quest.objectives.map((o) => {
+              const ex = exerciseById(o.exerciseId);
+              const ok = o.actualValue >= o.targetValue;
+              return (
+                <Pressable
+                  key={o.exerciseId}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${ex ? exerciseName(ex, locale) : o.exerciseId}. ${o.actualValue} ${t('common.of')} ${o.targetValue}`}
+                  disabled={done}
+                  onPress={() => openSession(o.exerciseId)}
+                  style={[styles.objective, ok ? styles.objectiveDone : styles.objectivePending]}
+                >
+                  <View style={styles.objectiveHead}>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.nameRow}>
+                        <Txt variant="bodyStrong">{ex ? exerciseName(ex, locale) : o.exerciseId}</Txt>
+                        {ok && <IconCheck />}
+                      </View>
+                      <Txt variant="bodySm" tone="muted" style={{ marginTop: 2 }}>
+                        {ok && o.rpe ? `${t('common.done')} · RPE ${o.rpe}` : ex ? systemName(ex, locale) : ''}
+                      </Txt>
+                    </View>
+                    <Txt variant="stat" tone={ok ? 'green' : 'default'}>
+                      {o.actualValue}
+                      <Txt variant="stat" tone={ok ? 'green' : 'muted'} style={{ fontSize: 14 }}>
+                        /{o.targetValue}{SUFFIX[o.unit]}
+                      </Txt>
+                    </Txt>
+                  </View>
+                  <StatBar ratio={o.targetValue ? o.actualValue / o.targetValue : 0} glow={false}
+                    fill={ok ? color.green : color.purpleLight} />
+                </Pressable>
+              );
+            })}
 
-        <SystemButton
-          label="Retomar"
-          onPress={() => {
-            const next = quest?.objectives.find((o) => o.actualValue < o.targetValue);
-            router.push({ pathname: '/sessao', params: { id: next?.exerciseId ?? 'push_knee' } });
-          }}
-        />
+            {done ? (
+              <Txt variant="body" tone="green">{t('status.questDone', { xp: quest.xpAwarded ?? 0 })}</Txt>
+            ) : (
+              <>
+                <Txt variant="bodySm" tone="dim">{t('quest.rewardDetail')}</Txt>
+                {next ? (
+                  <SystemButton label={started ? t('quest.resume') : t('quest.start')}
+                    onPress={() => openSession(next.exerciseId)} />
+                ) : (
+                  <SystemButton label={t('quest.finishDay')} onPress={finish} />
+                )}
+                {started && next && (
+                  <SystemButton label={t('quest.endSession')} variant="ghost" height={46} onPress={endDay} />
+                )}
+              </>
+            )}
+          </>
+        )}
       </ScrollView>
     </Screen>
   );
@@ -98,21 +138,15 @@ export default function MissaoScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: space.lg, paddingBottom: 40, gap: space.md },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
   questName: { fontSize: 19, marginTop: 4, letterSpacing: 0.4, fontFamily: font.display },
   deadline: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 13, paddingHorizontal: 15,
-    backgroundColor: color.redDim, borderWidth: 1, borderColor: color.redBorder,
+    paddingVertical: 13, paddingHorizontal: 15, backgroundColor: color.redDim, borderWidth: 1, borderColor: color.redBorder,
   },
   deadlineLabel: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   objective: { padding: 15, borderWidth: 1, borderLeftWidth: 3 },
   objectivePending: { backgroundColor: color.surface, borderColor: color.line, borderLeftColor: color.purpleLight },
   objectiveDone: { backgroundColor: color.greenDim, borderColor: color.greenBorder, borderLeftColor: color.green },
-  objectiveHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 },
+  objectiveHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9, gap: 8 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  reward: {
-    flexDirection: 'row', alignItems: 'center', gap: 9, padding: 12,
-    backgroundColor: color.blueDim, borderLeftWidth: 2, borderLeftColor: color.blue,
-  },
 });

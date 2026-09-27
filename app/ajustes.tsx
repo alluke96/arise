@@ -1,58 +1,115 @@
-import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  HudLabel, IconBack, IconInfo, IconLock, Screen, SystemButton, Txt,
-  color, font, space,
+  Choice, Header, HudLabel, IconInfo, IconLock, Note, Row, Screen, Section, SystemButton,
+  Toggle, Txt, color, space,
 } from '../src/ui';
-import { useSettings, useSystemText, useT } from '../src/features/settings/store';
-import { useProgression } from '../src/features/progression/store';
-import { LOCALES, LOCALE_LABEL, formatLength, formatMass } from '../src/core/i18n';
-import { buildBundle, serializeBundle, suggestedFileName } from '../src/core/db/backup';
-import { repositories } from '../src/core/repositories';
-import { INITIAL_STATUS, statusLabel } from '../src/core/sync/queue';
+import { useLocale, useSettings, useSystemText, useT } from '../src/features/settings/store';
+import { useHunter } from '../src/features/hunter/store';
+import { useBilling } from '../src/features/billing/store';
+import { exportToFile, importFromFile } from '../src/features/backup/files';
+import { syncNotifications } from '../src/features/notifications/adapter';
+import { LOCALES, LOCALE_LABEL, formatLength, formatMass, type TKey } from '../src/core/i18n';
+import type { NotificationPrefs } from '../src/core/notifications/schedule';
 
 export default function Ajustes() {
   const router = useRouter();
   const t = useT();
   const sys = useSystemText();
-  const { profile } = useProgression();
-  const {
-    locale, tone, units, notifications,
-    setLocale, setTone, setUnits, setNotifications,
-  } = useSettings();
-  const [exporting, setExporting] = useState(false);
+  const locale = useLocale();
+  const tone = useSettings((s) => s.tone);
+  const units = useSettings((s) => s.units);
+  const notifications = useSettings((s) => s.notifications);
+  const { setLocale, setTone, setUnits, setNotifications } = useSettings.getState();
+  const h = useHunter();
+  const entitlement = useBilling((s) => s.entitlement);
+  const subscription = useBilling((s) => s.subscription);
+  const [busy, setBusy] = useState<'export' | 'import' | null>(null);
 
-  const sync = statusLabel(INITIAL_STATUS);
+  useEffect(() => { void useBilling.getState().refresh(h.startedAt); }, [h.startedAt]);
+
+  if (!h.profile) return <Screen><View /></Screen>;
+  const profile = h.profile;
+  const injured = h.streak?.state === 'injured';
+
+  const updateNotifications = (p: Partial<NotificationPrefs>) => {
+    setNotifications(p);
+    if (h.quest) void syncNotifications(h.quest, profile.preferredTime);
+  };
+
+  const subscriptionLabel = (() => {
+    if (!entitlement) return '…';
+    switch (entitlement.state) {
+      case 'trial': return t('settings.subTrial', { days: entitlement.trialDaysLeft });
+      case 'subscribed': return t(subscription?.plan === 'monthly' ? 'settings.subMonthly' : 'settings.subAnnual');
+      case 'grace': return t('settings.subGrace', { hours: entitlement.graceHoursLeft });
+      default: return t('settings.subLocked');
+    }
+  })();
 
   const onExport = async () => {
-    setExporting(true);
+    setBusy('export');
     try {
-      const bundle = await buildBundle(repositories);
-      const json = serializeBundle(bundle);
-      Alert.alert(
-        suggestedFileName(),
-        `${bundle.events.length} eventos · ${Math.round(json.length / 1024)} KB\n\n` +
-        t('settings.exportNote'),
-      );
+      const r = await exportToFile();
+      Alert.alert(t('settings.exportDone'), t('settings.exportSummary', {
+        events: r.events, kb: Math.max(1, Math.round(r.bytes / 1024)),
+      }));
+    } catch {
+      Alert.alert(t('settings.exportData'), t('settings.fileError'));
     } finally {
-      setExporting(false);
+      setBusy(null);
     }
+  };
+
+  const onImport = async () => {
+    setBusy('import');
+    try {
+      const report = await importFromFile();
+      if (!report) return;
+      await h.boot();
+      await useSettings.getState().hydrate(useHunter.getState().profile, locale);
+      Alert.alert(t('settings.importDone'), t('settings.importSummary', {
+        events: report.events, quests: report.quests,
+      }));
+    } catch (e) {
+      Alert.alert(t('settings.importData'), `${t('settings.importInvalid')}\n\n${e instanceof Error ? e.message : ''}`);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const onInjury = (value: boolean) => {
+    Alert.alert(
+      t(value ? 'settings.injuryOnTitle' : 'settings.injuryOffTitle'),
+      t(value ? 'settings.injuryOnBody' : 'settings.injuryOffBody'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.confirm'), onPress: () => void h.setInjured(value) },
+      ],
+    );
+  };
+
+  const onWipe = () => {
+    Alert.alert(t('settings.deleteAccount'), t('settings.deleteConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('settings.deleteAction'), style: 'destructive',
+        onPress: async () => {
+          await h.wipe();
+          router.replace('/');
+        },
+      },
+    ]);
   };
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')}
-            onPress={() => router.back()} hitSlop={12}>
-            <IconBack />
-          </Pressable>
-          <Txt variant="title" style={{ fontSize: 20 }}>{t('settings.title')}</Txt>
-        </View>
+        <Header title={t('settings.title')} onBack={() => router.back()} backLabel={t('common.back')} />
 
         <Section label={t('settings.systemTone')}>
-          <Segmented
+          <Choice
             options={[
               { value: 'cold' as const, label: t('settings.toneCold') },
               { value: 'companion' as const, label: t('settings.toneCompanion') },
@@ -60,17 +117,15 @@ export default function Ajustes() {
             value={tone}
             onChange={setTone}
           />
-          <Note>{t('settings.toneNote')}</Note>
+          <Txt variant="bodySm" tone="muted">{t('settings.toneNote')}</Txt>
           <View style={styles.preview}>
-            <HudLabel tone="muted" style={{ fontSize: 10, marginBottom: 6 }}>Prévia</HudLabel>
-            <Txt variant="bodySm" tone={tone === 'cold' ? 'blue' : 'default'}>
-              {sys('questAvailable')}
-            </Txt>
+            <HudLabel tone="muted" style={{ fontSize: 10, marginBottom: 6 }}>{t('settings.preview')}</HudLabel>
+            <Txt variant="bodySm" tone={tone === 'cold' ? 'blue' : 'default'}>{sys('questAvailable')}</Txt>
           </View>
         </Section>
 
         <Section label={t('settings.language')}>
-          <Segmented
+          <Choice
             options={LOCALES.map((l) => ({ value: l, label: LOCALE_LABEL[l] }))}
             value={locale}
             onChange={setLocale}
@@ -79,165 +134,95 @@ export default function Ajustes() {
 
         <Section label={t('settings.units')}>
           <View style={styles.row}>
-            <Segmented
-              options={[{ value: 'kg' as const, label: 'kg' }, { value: 'lb' as const, label: 'lb' }]}
-              value={units.mass}
-              onChange={(mass) => setUnits({ mass })}
-            />
-            <Segmented
-              options={[{ value: 'cm' as const, label: 'cm' }, { value: 'ft' as const, label: 'ft/in' }]}
-              value={units.length}
-              onChange={(length) => setUnits({ length })}
-            />
+            <View style={{ flex: 1 }}>
+              <Choice
+                options={[{ value: 'kg' as const, label: 'kg' }, { value: 'lb' as const, label: 'lb' }]}
+                value={units.mass}
+                onChange={(mass) => setUnits({ mass })}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Choice
+                options={[{ value: 'cm' as const, label: 'cm' }, { value: 'ft' as const, label: 'ft/in' }]}
+                value={units.length}
+                onChange={(length) => setUnits({ length })}
+              />
+            </View>
           </View>
           <View style={styles.preview}>
             <Txt variant="bodySm" tone="dim">
-              {formatMass(profile.weightKg, units.mass, locale)} ·{' '}
-              {formatLength(profile.heightCm, units.length, locale)}
+              {formatMass(profile.weightKg, units.mass, locale)} · {formatLength(profile.heightCm, units.length, locale)}
             </Txt>
           </View>
-          <Note>{t('settings.unitsNote')}</Note>
+          <Txt variant="bodySm" tone="muted">{t('settings.unitsNote')}</Txt>
         </Section>
 
         <Section label={t('settings.notifications')}>
-          <Toggle label="Missão disponível" value={notifications.questAvailable}
-            onChange={(questAvailable) => setNotifications({ questAvailable })} />
-          <Toggle label="Avisos de prazo" value={notifications.deadlineWarnings}
-            onChange={(deadlineWarnings) => setNotifications({ deadlineWarnings })} />
-          <Note>No máximo 3 por dia, sempre.</Note>
+          <Toggle label={t('settings.notifEnabled')} value={notifications.enabled}
+            onChange={(enabled) => updateNotifications({ enabled })} />
+          {notifications.enabled && (
+            <>
+              <Toggle label={t('settings.notifQuest')} value={notifications.questAvailable}
+                note={t('settings.notifQuestNote', { time: profile.preferredTime })}
+                onChange={(questAvailable) => updateNotifications({ questAvailable })} />
+              <Toggle label={t('settings.notifDeadline')} value={notifications.deadlineWarnings}
+                onChange={(deadlineWarnings) => updateNotifications({ deadlineWarnings })} />
+              <Toggle label={t('settings.notifCompletion')} value={notifications.completion}
+                onChange={(completion) => updateNotifications({ completion })} />
+            </>
+          )}
+          <Txt variant="bodySm" tone="muted">{t('settings.notifCap')}</Txt>
+        </Section>
+
+        <Section label={t('settings.health')}>
+          <Toggle label={t('settings.injury')} value={injured} note={t('settings.injuryNote')}
+            onChange={onInjury} />
+          <Row label={t('settings.screeningResult')}
+            value={h.screening ? t(`settings.screening.${h.screening.result}` as TKey) : '—'} />
+          <SystemButton label={t('status.redoScreening')} variant="ghost" height={46}
+            onPress={() => router.push('/(onboarding)/triagem?renew=1')} />
         </Section>
 
         <Section label={t('settings.subscription')}>
-          <Row label="Estado" value="Teste grátis · 2 dias restantes" />
-          <SystemButton label="Ver planos" variant="ghost" height={46}
+          <Row label={t('settings.subState')} value={subscriptionLabel} />
+          <SystemButton label={t('settings.seePlans')} variant="ghost" height={46}
             onPress={() => router.push('/paywall')} />
         </Section>
 
-        {/* Decisão #5: nutrição fora do MVP, mas visível e honestamente rotulada.
-            Entrada bloqueada comunica roadmap sem prometer data — e sem coletar
-            e-mail para "avisar quando sair", que viraria obrigação. */}
+        {/* Decisão #5: nutrição fora do MVP, mas visível e honestamente rotulada. */}
         <Section label={t('settings.nutrition')}>
-          <View style={styles.soon}>
+          <View style={styles.soon} accessibilityState={{ disabled: true }}>
             <IconLock size={18} />
             <View style={{ flex: 1 }}>
               <Txt variant="bodyStrong" tone="locked">{t('common.soon')}…</Txt>
-              <Txt variant="bodySm" tone="muted" style={{ marginTop: 3 }}>
-                {t('settings.nutritionSoon')}
-              </Txt>
+              <Txt variant="bodySm" tone="muted" style={{ marginTop: 3 }}>{t('settings.nutritionSoon')}</Txt>
             </View>
           </View>
         </Section>
 
         <Section label={t('settings.privacy')}>
-          <Row label="Sincronização" value={sync === 'synced' ? 'Em dia' : sync} />
-          <SystemButton
-            label={exporting ? '…' : t('settings.exportData')}
-            variant="blue" height={46} onPress={onExport} disabled={exporting}
-          />
-          <SystemButton label={t('settings.importData')} variant="ghost" height={46} />
-          <View style={styles.note}>
-            <IconInfo />
-            <Txt variant="bodySm" tone="dim" style={{ flex: 1 }}>
-              {t('settings.exportNote')}
-            </Txt>
-          </View>
+          <Row label={t('settings.sync')} value={t('settings.syncLocal')} />
+          <SystemButton label={busy === 'export' ? '…' : t('settings.exportData')}
+            variant="blue" height={46} onPress={onExport} disabled={busy !== null} />
+          <SystemButton label={busy === 'import' ? '…' : t('settings.importData')}
+            variant="ghost" height={46} onPress={onImport} disabled={busy !== null} />
+          <Note icon={<IconInfo />}>
+            <Txt variant="bodySm" tone="dim">{t('settings.exportNote')}</Txt>
+          </Note>
         </Section>
 
-        <SystemButton label={t('settings.deleteAccount')} variant="danger" height={50}
-          onPress={() => Alert.alert(
-            t('settings.deleteAccount'),
-            'Isso apaga todo o seu histórico neste aparelho. Exporte antes se quiser guardar.',
-          )} />
+        <SystemButton label={t('settings.deleteAccount')} variant="danger" height={50} onPress={onWipe} />
       </ScrollView>
     </Screen>
   );
 }
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <HudLabel tone="muted">{label}</HudLabel>
-      {children}
-    </View>
-  );
-}
-
-function Segmented<T extends string>({ options, value, onChange }: {
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (v: T) => void;
-}) {
-  return (
-    <View style={styles.segmented} accessibilityRole="radiogroup">
-      {options.map((o) => {
-        const on = o.value === value;
-        return (
-          <Pressable
-            key={o.value}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: on }}
-            accessibilityLabel={o.label}
-            onPress={() => onChange(o.value)}
-            style={[styles.segment, on ? styles.segmentOn : styles.segmentOff]}
-          >
-            <Txt variant="bodySm" tone={on ? 'default' : 'dim'}
-              numberOfLines={1} style={{ fontFamily: font.displayMedium, fontSize: 13 }}>
-              {o.label}
-            </Txt>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
-function Toggle({ label, value, onChange }: {
-  label: string; value: boolean; onChange: (v: boolean) => void;
-}) {
-  return (
-    <View style={styles.toggleRow}>
-      <Txt variant="body" style={{ flex: 1 }}>{label}</Txt>
-      <Switch
-        accessibilityLabel={label}
-        value={value}
-        onValueChange={onChange}
-        trackColor={{ false: color.track, true: color.purple }}
-        thumbColor={value ? color.purpleSoft : color.textMuted}
-      />
-    </View>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.toggleRow}>
-      <Txt variant="body" tone="dim" style={{ flex: 1 }}>{label}</Txt>
-      <Txt variant="bodySm">{value}</Txt>
-    </View>
-  );
-}
-
-function Note({ children }: { children: React.ReactNode }) {
-  return <Txt variant="bodySm" tone="muted" style={{ marginTop: 2 }}>{children}</Txt>;
-}
-
 const styles = StyleSheet.create({
   content: { padding: space.lg, paddingBottom: 48, gap: space.xl },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  section: { gap: space.sm },
   row: { flexDirection: 'row', gap: 10 },
-  segmented: { flexDirection: 'row', gap: 8, flex: 1 },
-  segment: { flex: 1, height: 46, alignItems: 'center', justifyContent: 'center', borderWidth: 1, paddingHorizontal: 8 },
-  segmentOn: { backgroundColor: color.purple, borderColor: color.purpleLight },
-  segmentOff: { backgroundColor: color.purpleDim, borderColor: color.purpleBorder },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', minHeight: 48, gap: 12 },
   preview: { padding: 12, backgroundColor: color.surface, borderLeftWidth: 2, borderLeftColor: color.blue },
   soon: {
     flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14,
     backgroundColor: color.surfaceAlt, borderWidth: 1, borderColor: 'rgba(139,92,246,0.18)',
-  },
-  note: {
-    flexDirection: 'row', gap: 10, alignItems: 'flex-start', padding: 12,
-    backgroundColor: color.blueDim, borderLeftWidth: 2, borderLeftColor: color.blue,
   },
 });

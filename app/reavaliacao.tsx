@@ -1,121 +1,136 @@
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  HudLabel, IconBack, IconStar, RankBadge, Screen, StatBar, SystemButton,
+  Header, HudLabel, IconStar, Note, RankBadge, Screen, StatBar, Stepper, SystemButton,
   SystemWindow, Txt, color, space,
 } from '../src/ui';
-import { evaluateBenchmark, weeksToRankS } from '../src/core/engine';
-import { useProgression } from '../src/features/progression/store';
+import {
+  RANK_CRITERIA, daysBetween, nextRank, weeksToRankS,
+  type BenchmarkAttempt, type BenchmarkOutcome,
+} from '../src/core/engine';
+import { benchmarkCooldown, useHunter } from '../src/features/hunter/store';
+import { useLocale, useSystemText, useT } from '../src/features/settings/store';
+import { exerciseById, exerciseName } from '../src/data/exercises';
 
-const ATTEMPT = { pushReps: 13, squatReps: 21, coreSeconds: 38, aerobicMinutes: 24 };
-
-const LABEL: Record<keyof typeof ATTEMPT, { name: string; unit: string }> = {
-  pushReps: { name: 'Flexões inclinadas', unit: '' },
-  squatReps: { name: 'Agachamentos livres', unit: '' },
-  coreSeconds: { name: 'Prancha de joelho', unit: 's' },
-  aerobicMinutes: { name: 'Caminhada contínua', unit: 'min' },
-};
-
-const BODY = [
-  { label: 'Peso', value: '89,1', unit: 'kg', delta: '−3,3 kg', tone: 'green' as const },
-  { label: 'Cintura', value: '97', unit: 'cm', delta: '−4 cm', tone: 'green' as const },
-  { label: 'Passos/dia', value: '6.840', unit: '', delta: 'meta 7.000', tone: 'blue' as const },
-];
-
+/**
+ * R7 — Raide de Boss. O rank só muda por teste aprovado em TODOS os critérios.
+ * O usuário faz cada teste e registra o que conseguiu com boa forma.
+ */
 export default function Reavaliacao() {
   const router = useRouter();
-  const { progression } = useProgression();
+  const t = useT();
+  const sys = useSystemText();
+  const locale = useLocale();
+  const h = useHunter();
+  const current = h.progression.rank;
+  const target = nextRank(current);
+  const [attempt, setAttempt] = useState<BenchmarkAttempt>({ pushReps: 0, squatReps: 0, coreSeconds: 0, aerobicMinutes: 0 });
+  const [outcome, setOutcome] = useState<BenchmarkOutcome | null>(null);
 
-  // Benchmark avaliado pelo MOTOR — a tela não decide nada (R7.2).
-  const outcome = evaluateBenchmark('E', ATTEMPT);
-  const weeks = weeksToRankS(outcome.passed ? outcome.targetRank : 'E', 0.82);
+  const cooldown = benchmarkCooldown(h.lastBenchmarkOn, h.today);
+  const c = target ? RANK_CRITERIA[target] : null;
+  const name = (id: string) => { const e = exerciseById(id); return e ? exerciseName(e, locale) : id; };
+
+  // Ritmo real: semanas até o rank atual contra a mediana (R7.7).
+  const weeksIn = h.startedAt ? daysBetween(h.startedAt, h.today) / 7 : 0;
+  const median = RANK_CRITERIA[current].medianWeeks;
+  const pace = median > 0 && weeksIn > 0 ? Math.min(2, Math.max(0.5, weeksIn / median)) : 1;
+
+  const submit = async () => setOutcome(await h.submitBenchmark(attempt));
+
+  const rows: { key: keyof BenchmarkAttempt; label: string; required: number; suffix?: string; step: number }[] = c ? [
+    { key: 'pushReps', label: name(c.pushExercise), required: c.pushReps, step: 1 },
+    { key: 'squatReps', label: name(c.squatExercise), required: c.squatReps, step: 1 },
+    { key: 'coreSeconds', label: name(c.coreExercise), required: c.coreSeconds, suffix: 's', step: 5 },
+    { key: 'aerobicMinutes', label: t('benchmark.continuousAerobic'), required: c.aerobicMinutes, suffix: 'min', step: 1 },
+  ] : [];
 
   return (
     <Screen>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Voltar"
-            onPress={() => router.back()} hitSlop={12}>
-            <IconBack />
-          </Pressable>
-          <HudLabel tone="muted" style={{ fontSize: 11 }}>Raide de Boss · semana 6</HudLabel>
-        </View>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Header backLabel={t('common.back')} onBack={() => router.back()} title={t('benchmark.title')} />
 
-        <View style={styles.promo}>
-          <HudLabel tone="blue" style={{ marginBottom: 16 }}>
-            {outcome.passed ? 'Reavaliação aprovada' : 'Reavaliação reprovada'}
-          </HudLabel>
-          <View style={styles.rankRow}>
-            <RankBadge rank="E" size="sm" dimmed />
-            <Txt tone="blue" style={styles.arrow}>→</Txt>
-            <RankBadge rank={outcome.targetRank} size="lg" />
-          </View>
-        </View>
-
-        <SystemWindow padding={18}>
-          <HudLabel tone="muted" style={{ marginBottom: 14 }}>Resultados do teste</HudLabel>
-          {outcome.results.map((r) => (
-            <View key={r.key} style={styles.result}>
-              <View style={styles.resultHead}>
-                <Txt variant="body">{LABEL[r.key].name}</Txt>
-                <Txt variant="bodySm" tone={r.passed ? 'green' : 'red'}>
-                  {r.actual}{LABEL[r.key].unit}{' '}
-                  <Txt variant="bodySm" tone="muted">/ {r.required}{LABEL[r.key].unit}</Txt>
-                </Txt>
+        {!target ? (
+          <Note><Txt variant="body" tone="dim">{t('benchmark.maxRank')}</Txt></Note>
+        ) : outcome ? (
+          <>
+            <View style={styles.promo}>
+              <HudLabel tone={outcome.passed ? 'blue' : 'red'} style={{ marginBottom: 16 }}>
+                {outcome.passed ? t('benchmark.passed') : t('benchmark.failed')}
+              </HudLabel>
+              <View style={styles.rankRow}>
+                <RankBadge rank={current === outcome.targetRank ? current : current} size="sm" dimmed={outcome.passed} />
+                {outcome.passed && <Txt tone="blue" style={styles.arrow}>→</Txt>}
+                {outcome.passed && <RankBadge rank={outcome.targetRank} size="lg" />}
               </View>
-              <StatBar ratio={r.actual / r.required} height={4} glow={false}
-                fill={r.passed ? color.green : color.red} />
+              {outcome.passed && <Txt variant="bodySm" tone="dim" style={{ marginTop: 12, textAlign: 'center' }}>{sys('rankUp')}</Txt>}
             </View>
-          ))}
-        </SystemWindow>
-
-        <View style={styles.bodyRow}>
-          {BODY.map((b) => (
-            <View key={b.label} style={styles.bodyCard}>
-              <Txt variant="bodySm" tone="muted" style={{ fontSize: 11 }}>{b.label}</Txt>
-              <Txt variant="stat" style={{ fontSize: 17, marginTop: 4 }}>
-                {b.value}<Txt variant="stat" tone="muted" style={{ fontSize: 11 }}>{b.unit}</Txt>
-              </Txt>
-              <Txt variant="bodySm" tone={b.tone} style={{ fontSize: 11, marginTop: 2 }}>{b.delta}</Txt>
+            <SystemWindow padding={18}>
+              <HudLabel tone="muted" style={{ marginBottom: 14 }}>{t('benchmark.results')}</HudLabel>
+              {outcome.results.map((r) => {
+                const row = rows.find((x) => x.key === r.key)!;
+                return (
+                  <View key={r.key} style={styles.result}>
+                    <View style={styles.resultHead}>
+                      <Txt variant="body" style={{ flex: 1 }}>{row.label}</Txt>
+                      <Txt variant="bodySm" tone={r.passed ? 'green' : 'red'}>
+                        {r.actual}{row.suffix ?? ''} <Txt variant="bodySm" tone="muted">/ {r.required}{row.suffix ?? ''}</Txt>
+                      </Txt>
+                    </View>
+                    <StatBar ratio={r.required ? r.actual / r.required : 0} height={4} glow={false}
+                      fill={r.passed ? color.green : color.red} />
+                  </View>
+                );
+              })}
+            </SystemWindow>
+            {!outcome.passed && <Note><Txt variant="bodySm" tone="dim">{t('benchmark.failedNote')}</Txt></Note>}
+            <SystemButton label={t('common.continue')} onPress={() => router.replace('/status')} />
+          </>
+        ) : cooldown > 0 ? (
+          <Note><Txt variant="body" tone="dim">{t('benchmark.cooldown', { days: cooldown })}</Txt></Note>
+        ) : (
+          <>
+            <View style={styles.targetHead}>
+              <RankBadge rank={current} size="sm" dimmed />
+              <Txt tone="blue" style={styles.arrow}>→</Txt>
+              <RankBadge rank={target} size="sm" />
             </View>
-          ))}
-        </View>
+            <Txt variant="body" tone="dim">{t('benchmark.instructions')}</Txt>
 
-        {/* R7.7 — projeção recalculada com o ritmo REAL, não com a curva genérica. */}
-        <View style={styles.projection}>
-          <IconStar />
-          <Txt variant="bodySm" tone="dim" style={{ flex: 1 }}>
-            Projeção recalculada com <Txt variant="bodySm" tone="default">seus dados reais</Txt>,
-            não com a curva genérica: Rank S em <Txt variant="bodySm" tone="default">{weeks} semanas</Txt>.
-          </Txt>
-        </View>
+            <SystemWindow padding={16}>
+              <View style={{ gap: 16 }}>
+                {rows.map((r) => (
+                  <View key={r.key} style={{ gap: 4 }}>
+                    <Stepper label={r.label} value={attempt[r.key]} min={0} max={600} step={r.step} suffix={r.suffix}
+                      onChange={(v) => setAttempt((a) => ({ ...a, [r.key]: v }))}
+                      decLabel={t('common.decrease')} incLabel={t('common.increase')} />
+                    <Txt variant="bodySm" tone={attempt[r.key] >= r.required ? 'green' : 'muted'}>
+                      {t('benchmark.required', { value: `${r.required}${r.suffix ?? ''}` })}
+                    </Txt>
+                  </View>
+                ))}
+              </View>
+            </SystemWindow>
 
-        <SystemButton label="Ver Zona de Penalidade" variant="ghost" height={50}
-          onPress={() => router.push('/penalidade')} />
-        <SystemButton
-          label={outcome.passed ? `Avançar para o Rank ${outcome.targetRank}` : 'Voltar ao treino'}
-          onPress={() => router.replace('/status')}
-        />
-        <Txt variant="bodySm" tone="muted" style={{ textAlign: 'center' }}>
-          Rank atual no perfil: {progression.rank} · próxima reavaliação em 6 semanas
-        </Txt>
+            <Note icon={<IconStar />}>
+              <Txt variant="bodySm" tone="dim">{t('benchmark.projection', { weeks: weeksToRankS(current, pace) })}</Txt>
+            </Note>
+
+            <SystemButton label={t('benchmark.submit')} onPress={submit} />
+          </>
+        )}
       </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: space.xl, paddingBottom: 40, gap: space.md },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  content: { padding: space.xl, paddingBottom: 40, gap: space.lg },
   promo: { alignItems: 'center', marginVertical: 8 },
   rankRow: { flexDirection: 'row', alignItems: 'center', gap: 22 },
+  targetHead: { flexDirection: 'row', alignItems: 'center', gap: 16, justifyContent: 'center' },
   arrow: { fontSize: 28, color: color.blue },
   result: { marginBottom: 12 },
-  resultHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 5 },
-  bodyRow: { flexDirection: 'row', gap: 9 },
-  bodyCard: { flex: 1, padding: 12, backgroundColor: color.surface, borderWidth: 1, borderColor: color.purpleBorder },
-  projection: {
-    flexDirection: 'row', gap: 11, alignItems: 'flex-start', padding: 14,
-    backgroundColor: color.blueDim, borderLeftWidth: 2, borderLeftColor: color.blue,
-  },
+  resultHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 5, gap: 8 },
 });

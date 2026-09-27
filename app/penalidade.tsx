@@ -1,45 +1,68 @@
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  HudLabel, IconCheck, IconInfo, Screen, StatBar, SystemButton, SystemWindow,
-  Txt, color, font, space,
+  HudLabel, IconCheck, IconInfo, Note, Screen, StatBar, SystemButton, SystemWindow, Txt, color, font, space,
 } from '../src/ui';
 import { PENALTY_DURATION_SECONDS } from '../src/core/engine';
-import { useProgression } from '../src/features/progression/store';
+import { useHunter } from '../src/features/hunter/store';
+import { useLocale, useT } from '../src/features/settings/store';
+import { exerciseById, exerciseName } from '../src/data/exercises';
 
-const STEPS = [
-  { name: 'Gato-camelo', seconds: 60, done: true },
-  { name: 'Marcha no lugar', seconds: 90, done: false, active: true },
-  { name: 'Alongamento de peitoral', seconds: 45, done: false },
-  { name: 'Respiração 4-7-8', seconds: 45, done: false },
+/** 4 minutos em RPE 2–3 (R8.2): mobilidade e caminhada no lugar. */
+const STEPS: { id: string; seconds: number }[] = [
+  { id: 'cat_camel', seconds: 60 },
+  { id: 'march_in_place', seconds: 90 },
+  { id: 'chest_stretch', seconds: 45 },
+  { id: 'breathing', seconds: 45 },
 ];
 
 export default function Penalidade() {
   const router = useRouter();
-  const { progression } = useProgression();
-  const elapsed = 19;
+  const t = useT();
+  const locale = useLocale();
+  const { progression, penaltyOpenFor, clearPenalty, useStone } = useHunter();
+  const [elapsed, setElapsed] = useState(0);
+  const [running, setRunning] = useState(false);
+
+  useEffect(() => {
+    if (!running || elapsed >= PENALTY_DURATION_SECONDS) return;
+    const tick = setTimeout(() => setElapsed((e) => e + 1), 1000);
+    return () => clearTimeout(tick);
+  }, [running, elapsed]);
+
+  if (!penaltyOpenFor) {
+    return (
+      <Screen>
+        <View style={styles.empty}>
+          <Txt variant="body" tone="dim" style={{ textAlign: 'center' }}>{t('penalty.noneOpen')}</Txt>
+          <SystemButton label={t('common.back')} onPress={() => router.back()} />
+        </View>
+      </Screen>
+    );
+  }
+
   const remaining = PENALTY_DURATION_SECONDS - elapsed;
-  const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
-  const ss = String(remaining % 60).padStart(2, '0');
+  const finished = remaining <= 0;
+  let acc = 0;
 
   return (
     <Screen tone="penalty">
-      <View style={styles.root}>
+      <ScrollView contentContainerStyle={styles.root}>
         <View style={styles.signal}>
           <View style={styles.dot} />
-          <HudLabel tone="red" style={{ fontSize: 11 }}>Missão diária não concluída</HudLabel>
+          <HudLabel tone="red" style={{ fontSize: 11 }}>{t('penalty.missedQuest')}</HudLabel>
         </View>
 
-        <Txt style={styles.title}>ZONA DE{'\n'}PENALIDADE</Txt>
-        <Txt variant="body" tone="dim" style={styles.lede}>
-          Você tem <Txt variant="bodyStrong">4 minutos</Txt> para sair daqui.
-          Nada de intenso — mobilidade e caminhada no lugar.
-        </Txt>
+        <Txt style={styles.title} accessibilityRole="header">{t('penalty.title')}</Txt>
+        <Txt variant="body" style={styles.lede}>{t('penalty.intro', { minutes: 4 })}</Txt>
 
         <SystemWindow variant="alert" chamfer={17} padding={24}>
           <View style={{ alignItems: 'center' }}>
-            <HudLabel tone="red" style={{ fontSize: 11 }}>Tempo restante</HudLabel>
-            <Txt style={styles.timer}>{mm}:{ss}</Txt>
+            <HudLabel tone="red" style={{ fontSize: 11 }}>{t('penalty.timeRemaining')}</HudLabel>
+            <Txt style={styles.timer} accessibilityLiveRegion="polite">
+              {String(Math.floor(Math.max(0, remaining) / 60)).padStart(2, '0')}:{String(Math.max(0, remaining) % 60).padStart(2, '0')}
+            </Txt>
             <View style={{ width: '100%' }}>
               <StatBar ratio={elapsed / PENALTY_DURATION_SECONDS} fill={color.red} />
             </View>
@@ -47,64 +70,57 @@ export default function Penalidade() {
         </SystemWindow>
 
         <View style={styles.steps}>
-          {STEPS.map((s) => (
-            <View key={s.name} style={[
-              styles.step,
-              s.done && styles.stepDone,
-              s.active && styles.stepActive,
-              !s.done && !s.active && styles.stepIdle,
-            ]}>
-              {s.done ? <IconCheck /> : (
-                <View style={[styles.bullet, s.active && styles.bulletActive]} />
-              )}
-              <Txt variant="body" tone={s.done ? 'default' : s.active ? 'default' : 'muted'}
-                style={{ flex: 1, fontSize: 14.5 }}>
-                {s.name}
-              </Txt>
-              <Txt variant="bodySm" tone={s.active ? 'red' : 'muted'}
-                style={{ fontFamily: font.displayMedium }}>{s.seconds}s</Txt>
-            </View>
-          ))}
+          {STEPS.map((s) => {
+            const start = acc;
+            acc += s.seconds;
+            const isDone = elapsed >= acc;
+            const active = !isDone && elapsed >= start;
+            const ex = exerciseById(s.id);
+            const name = ex ? exerciseName(ex, locale) : t('penalty.breathing');
+            return (
+              <View key={s.id} style={[styles.step, isDone ? styles.stepDone : active ? styles.stepActive : styles.stepIdle]}>
+                {isDone ? <IconCheck /> : <View style={[styles.bullet, active && styles.bulletActive]} />}
+                <Txt variant="body" tone={isDone || active ? 'default' : 'muted'} style={{ flex: 1, fontSize: 14.5 }}>{name}</Txt>
+                <Txt variant="bodySm" tone={active ? 'red' : 'muted'} style={{ fontFamily: font.displayMedium }}>{s.seconds}s</Txt>
+              </View>
+            );
+          })}
         </View>
 
-        <View style={{ flex: 1 }} />
+        {/* R8.5 — a garantia mais importante do app, dita onde mais precisa ser lida. */}
+        <Note icon={<IconInfo />}>
+          <Txt variant="bodySm" tone="dim">{t('penalty.reassurance', { days: progression.streakCurrent })}</Txt>
+        </Note>
 
-        {/* R8.5 — a garantia mais importante do app, dita em voz alta na
-            tela onde o usuário mais precisa lê-la. */}
-        <View style={styles.reassurance}>
-          <IconInfo />
-          <Txt variant="bodySm" tone="dim" style={{ flex: 1 }}>
-            Isto não é castigo. Concluir{' '}
-            <Txt variant="bodySm" tone="default">
-              restaura sua sequência de {progression.streakCurrent} dias
-            </Txt>{' '}
-            e devolve metade do XP. Seu nível, rank e histórico nunca são apagados — em nenhuma hipótese.
-          </Txt>
-        </View>
-
-        <SystemButton label="Sobreviver" variant="danger" height={58}
-          onPress={() => router.replace('/status')} />
+        {finished ? (
+          <SystemButton label={t('penalty.survive')} variant="danger" height={58}
+            onPress={async () => { await clearPenalty(); router.replace('/status'); }} />
+        ) : (
+          <SystemButton label={running ? t('quest.pause') : t('penalty.start')} variant="danger" height={58}
+            onPress={() => setRunning((r) => !r)} />
+        )}
         <SystemButton
-          label={`Usar pedra de recuperação (${progression.recoveryStones})`}
+          label={t('penalty.useStone', { count: progression.recoveryStones })}
           variant="ghost" height={46}
-          onPress={() => router.replace('/status')}
+          disabled={progression.recoveryStones <= 0}
+          onPress={async () => { if (await useStone()) router.replace('/status'); }}
         />
-      </View>
+        {progression.recoveryStones <= 0 && (
+          <Txt variant="bodySm" tone="muted" style={{ textAlign: 'center' }}>{t('penalty.noStones')}</Txt>
+        )}
+      </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, paddingHorizontal: 24, paddingTop: 24, paddingBottom: 28, gap: space.md },
+  root: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 40, gap: space.md },
+  empty: { flex: 1, justifyContent: 'center', padding: space.xl, gap: space.lg },
   signal: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  dot: {
-    width: 7, height: 7, backgroundColor: color.red,
-    shadowColor: color.red, shadowOpacity: 1, shadowRadius: 10, shadowOffset: { width: 0, height: 0 },
-  },
+  dot: { width: 7, height: 7, backgroundColor: color.red, shadowColor: color.red, shadowOpacity: 1, shadowRadius: 10, shadowOffset: { width: 0, height: 0 } },
   title: {
-    fontFamily: font.displayBold, fontSize: 37, lineHeight: 39, color: '#FFFFFF',
-    letterSpacing: 1.8, marginTop: 14,
-    textShadowColor: 'rgba(255,59,92,0.6)', textShadowRadius: 24,
+    fontFamily: font.displayBold, fontSize: 37, lineHeight: 39, color: '#FFFFFF', letterSpacing: 1.8,
+    marginTop: 14, textShadowColor: 'rgba(255,59,92,0.6)', textShadowRadius: 24,
   },
   lede: { color: '#E4C8D0', fontSize: 15, lineHeight: 24 },
   timer: {
@@ -114,17 +130,8 @@ const styles = StyleSheet.create({
   steps: { gap: 9, marginTop: 6 },
   step: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingHorizontal: 15, borderWidth: 1 },
   stepDone: { backgroundColor: color.greenDim, borderColor: color.greenBorder },
-  stepActive: {
-    backgroundColor: 'rgba(255,59,92,0.09)', borderColor: 'rgba(255,59,92,0.42)',
-  },
+  stepActive: { backgroundColor: 'rgba(255,59,92,0.09)', borderColor: 'rgba(255,59,92,0.42)' },
   stepIdle: { backgroundColor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,107,133,0.20)' },
   bullet: { width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: 'rgba(255,107,133,0.35)' },
-  bulletActive: {
-    borderColor: color.red,
-    shadowColor: color.red, shadowOpacity: 0.7, shadowRadius: 10, shadowOffset: { width: 0, height: 0 },
-  },
-  reassurance: {
-    flexDirection: 'row', gap: 11, alignItems: 'flex-start', padding: 14,
-    backgroundColor: color.blueDim, borderLeftWidth: 2, borderLeftColor: color.blue,
-  },
+  bulletActive: { borderColor: color.red },
 });

@@ -3,8 +3,11 @@ import type { Attribute, Pattern, Rank, SessionSummary } from '../types';
 /**
  * Eventos do domínio — fatos imutáveis e datados.
  *
- * O `id` é gerado no CLIENTE (UUID). É o que torna o reenvio de um lote
- * idempotente: o servidor faz `on conflict do nothing` e o fold deduplica.
+ * O `id` é gerado no CLIENTE: UUID para fatos avulsos, DETERMINÍSTICO para o
+ * que só acontece uma vez por dia/mês (`session:<dia>`, `stone_grant:<mês>`
+ * — ver `eventId` em engine/calendar). É o que torna idempotentes o reenvio
+ * de um lote e a reconciliação feita em dois aparelhos: o servidor faz
+ * `on conflict (user_id, id) do nothing` e o fold deduplica.
  *
  * Tudo que altera progressão é um evento. A progressão em si não é
  * armazenada nem sincronizada — ela é o fold disto. Ver

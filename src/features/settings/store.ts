@@ -5,17 +5,32 @@ import {
   type Locale, type SystemTone, type TKey,
 } from '../../core/i18n';
 import { DEFAULT_PREFS, type NotificationPrefs } from '../../core/notifications/schedule';
+import { repositories } from '../../core/repositories';
 import type { UserProfile } from '../../core/types';
+
+const PREFS_KEY = 'notification_prefs';
 
 interface SettingsState {
   locale: Locale;
   tone: SystemTone;
   units: UserProfile['units'];
   notifications: NotificationPrefs;
-  setLocale: (l: Locale) => void;
-  setTone: (t: SystemTone) => void;
-  setUnits: (u: Partial<UserProfile['units']>) => void;
-  setNotifications: (p: Partial<NotificationPrefs>) => void;
+  /** Carrega do perfil e do estado do app. Chamado no boot. */
+  hydrate(profile: UserProfile | null, fallbackLocale: Locale): Promise<void>;
+  setLocale(l: Locale): void;
+  setTone(t: SystemTone): void;
+  setUnits(u: Partial<UserProfile['units']>): void;
+  setNotifications(p: Partial<NotificationPrefs>): void;
+}
+
+/**
+ * Idioma, tom e unidades vivem no PERFIL — uma versão anterior guardava só
+ * em memória, e tudo voltava ao padrão quando o app fechava. Quem persiste o
+ * perfil é o store do caçador; este store avisa por `onPersist`.
+ */
+let onPersist: ((patch: Partial<UserProfile>) => void) | null = null;
+export function bindProfilePersistence(fn: (patch: Partial<UserProfile>) => void) {
+  onPersist = fn;
 }
 
 export const useSettings = create<SettingsState>((set, get) => ({
@@ -24,10 +39,37 @@ export const useSettings = create<SettingsState>((set, get) => ({
   units: { mass: 'kg', length: 'cm' },
   notifications: DEFAULT_PREFS,
 
-  setLocale(l) { applyLocale(l); set({ locale: l }); },
-  setTone(tone) { applyTone(tone); set({ tone }); },
-  setUnits(u) { set({ units: { ...get().units, ...u } }); },
-  setNotifications(p) { set({ notifications: { ...get().notifications, ...p } }); },
+  async hydrate(profile, fallbackLocale) {
+    const locale = profile?.locale ?? fallbackLocale;
+    const tone = profile?.systemTone ?? 'cold';
+    applyLocale(locale);
+    applyTone(tone);
+    const raw = await repositories.app.getValue(PREFS_KEY);
+    let notifications = DEFAULT_PREFS;
+    try { if (raw) notifications = { ...DEFAULT_PREFS, ...JSON.parse(raw) }; } catch { /* mantém o padrão */ }
+    set({ locale, tone, units: profile?.units ?? { mass: 'kg', length: 'cm' }, notifications });
+  },
+
+  setLocale(locale) {
+    applyLocale(locale);
+    set({ locale });
+    onPersist?.({ locale });
+  },
+  setTone(tone) {
+    applyTone(tone);
+    set({ tone });
+    onPersist?.({ systemTone: tone });
+  },
+  setUnits(u) {
+    const units = { ...get().units, ...u };
+    set({ units });
+    onPersist?.({ units });
+  },
+  setNotifications(p) {
+    const notifications = { ...get().notifications, ...p };
+    set({ notifications });
+    void repositories.app.setValue(PREFS_KEY, JSON.stringify(notifications));
+  },
 }));
 
 /**
@@ -55,4 +97,8 @@ export function useSystemText() {
       systemText(key, params, tone, locale),
     [locale, tone],
   );
+}
+
+export function useLocale(): Locale {
+  return useSettings((s) => s.locale);
 }

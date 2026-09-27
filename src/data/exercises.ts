@@ -1,4 +1,5 @@
 import type { Exercise, Pattern, Rank } from '../core/types';
+import { EXERCISES_EN } from './exercises.en';
 
 /**
  * Catálogo completo — 80 exercícios.
@@ -488,6 +489,26 @@ export const EXERCISES: Exercise[] = SPECS.map(build);
 
 export const exerciseById = (id: string): Exercise | undefined =>
   EXERCISES.find((e) => e.id === id);
+
+export function exerciseName(e: Exercise, locale: 'pt-BR' | 'en-US'): string {
+  return locale === 'en-US' ? e.nameEn : e.namePt;
+}
+
+export function systemName(e: Exercise, locale: 'pt-BR' | 'en-US'): string {
+  return locale === 'en-US' ? (EXERCISES_EN[e.id]?.sys ?? e.systemNamePt) : e.systemNamePt;
+}
+
+export function exerciseCues(e: Exercise, locale: 'pt-BR' | 'en-US'): string[] {
+  return locale === 'en-US' ? (EXERCISES_EN[e.id]?.cues ?? e.cues) : e.cues;
+}
+
+export function exerciseErrors(e: Exercise, locale: 'pt-BR' | 'en-US'): string[] {
+  return locale === 'en-US' ? (EXERCISES_EN[e.id]?.errs ?? e.commonErrors) : e.commonErrors;
+}
+
+export function exerciseCriteria(e: Exercise, locale: 'pt-BR' | 'en-US'): string {
+  return locale === 'en-US' ? (EXERCISES_EN[e.id]?.crit ?? e.progressionCriteria) : e.progressionCriteria;
+}
 
 export const exercisesByPattern = (pattern: Pattern): Exercise[] =>
   EXERCISES.filter((e) => e.pattern === pattern).sort((a, b) => a.difficulty - b.difficulty);

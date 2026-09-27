@@ -15,6 +15,10 @@ export function nextRank(rank: Rank): Rank | null {
 
 export interface RankCriteria {
   rank: Rank;
+  /** Exercício de cada teste — o nome vem do catálogo, já traduzido. */
+  pushExercise: string;
+  squatExercise: string;
+  coreExercise: string;
   /** Nome temático do estágio. */
   titlePt: string;
   pushReps: number;
@@ -31,12 +35,12 @@ export interface RankCriteria {
 
 /** §6.2 do product brief. Promoção exige TODOS os critérios. */
 export const RANK_CRITERIA: Record<Rank, RankCriteria> = {
-  E: { rank: 'E', titlePt: 'Despertar', pushReps: 5, pushVariantPt: 'na parede', squatReps: 10, squatVariantPt: 'sentar-levantar', coreSeconds: 15, coreVariantPt: 'prancha de joelho', aerobicPt: '10 min de caminhada', aerobicMinutes: 10, medianWeeks: 0 },
-  D: { rank: 'D', titlePt: 'Caçador Licenciado', pushReps: 10, pushVariantPt: 'inclinadas', squatReps: 15, squatVariantPt: 'livres parciais', coreSeconds: 30, coreVariantPt: 'prancha de joelho', aerobicPt: '20 min contínuos', aerobicMinutes: 20, medianWeeks: 4 },
-  C: { rank: 'C', titlePt: 'Caçador de Campo', pushReps: 10, pushVariantPt: 'de joelhos', squatReps: 20, squatVariantPt: 'livres completos', coreSeconds: 45, coreVariantPt: 'prancha completa', aerobicPt: '30 min rápidos', aerobicMinutes: 30, medianWeeks: 10 },
-  B: { rank: 'B', titlePt: 'Caçador de Elite', pushReps: 15, pushVariantPt: 'completas', squatReps: 30, squatVariantPt: 'livres', coreSeconds: 60, coreVariantPt: 'prancha completa', aerobicPt: '5 km run-walk', aerobicMinutes: 40, medianWeeks: 18 },
-  A: { rank: 'A', titlePt: 'Monarca em Ascensão', pushReps: 30, pushVariantPt: 'completas', squatReps: 50, squatVariantPt: 'livres', coreSeconds: 90, coreVariantPt: 'prancha + 10 barras', aerobicPt: '5 km contínuos', aerobicMinutes: 35, medianWeeks: 26 },
-  S: { rank: 'S', titlePt: 'A Missão Diária', pushReps: 100, pushVariantPt: 'completas', squatReps: 100, squatVariantPt: 'livres + 100 abdominais', coreSeconds: 120, coreVariantPt: 'prancha completa', aerobicPt: '10 km de corrida', aerobicMinutes: 60, medianWeeks: 32 },
+  E: { rank: 'E', pushExercise: 'push_wall', squatExercise: 'squat_chair', coreExercise: 'plank_knee', titlePt: 'Despertar', pushReps: 5, pushVariantPt: 'na parede', squatReps: 10, squatVariantPt: 'sentar-levantar', coreSeconds: 15, coreVariantPt: 'prancha de joelho', aerobicPt: '10 min de caminhada', aerobicMinutes: 10, medianWeeks: 0 },
+  D: { rank: 'D', pushExercise: 'push_bench', squatExercise: 'squat_partial', coreExercise: 'plank_knee', titlePt: 'Caçador Licenciado', pushReps: 10, pushVariantPt: 'inclinadas', squatReps: 15, squatVariantPt: 'livres parciais', coreSeconds: 30, coreVariantPt: 'prancha de joelho', aerobicPt: '20 min contínuos', aerobicMinutes: 20, medianWeeks: 4 },
+  C: { rank: 'C', pushExercise: 'push_knee', squatExercise: 'squat_full', coreExercise: 'plank_full', titlePt: 'Caçador de Campo', pushReps: 10, pushVariantPt: 'de joelhos', squatReps: 20, squatVariantPt: 'livres completos', coreSeconds: 45, coreVariantPt: 'prancha completa', aerobicPt: '30 min rápidos', aerobicMinutes: 30, medianWeeks: 10 },
+  B: { rank: 'B', pushExercise: 'push_full', squatExercise: 'squat_full', coreExercise: 'plank_full', titlePt: 'Caçador de Elite', pushReps: 15, pushVariantPt: 'completas', squatReps: 30, squatVariantPt: 'livres', coreSeconds: 60, coreVariantPt: 'prancha completa', aerobicPt: '5 km run-walk', aerobicMinutes: 40, medianWeeks: 18 },
+  A: { rank: 'A', pushExercise: 'push_full', squatExercise: 'squat_full', coreExercise: 'plank_full', titlePt: 'Monarca em Ascensão', pushReps: 30, pushVariantPt: 'completas', squatReps: 50, squatVariantPt: 'livres', coreSeconds: 90, coreVariantPt: 'prancha + 10 barras', aerobicPt: '5 km contínuos', aerobicMinutes: 35, medianWeeks: 26 },
+  S: { rank: 'S', pushExercise: 'push_full', squatExercise: 'squat_full', coreExercise: 'plank_full', titlePt: 'A Missão Diária', pushReps: 100, pushVariantPt: 'completas', squatReps: 100, squatVariantPt: 'livres + 100 abdominais', coreSeconds: 120, coreVariantPt: 'prancha completa', aerobicPt: '10 km de corrida', aerobicMinutes: 60, medianWeeks: 32 },
 };
 
 export interface BenchmarkAttempt {

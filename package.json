@@ -8,10 +8,11 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "TZ=America/Sao_Paulo vitest run",
+    "test:watch": "TZ=America/Sao_Paulo vitest",
     "typecheck": "tsc --noEmit",
-    "db:test": "bash supabase/test.sh"
+    "db:test": "bash supabase/test.sh",
+    "test:utc": "TZ=UTC vitest run"
   },
   "dependencies": {
     "@expo-google-fonts/barlow": "^0.4.1",

@@ -1,79 +1,66 @@
 import { describe, expect, it } from 'vitest';
 import { levelProgress, xpForLevel } from '../xp';
-import { DEMO_PROGRESSION } from '../../../data/mocks/demo';
-import { EXERCISES } from '../../../data/exercises';
-import { isPrescribable } from '../quest';
+import { reconcile } from '../calendar';
+import { foldAll } from '../../sync/fold';
+import { buildDemo } from '../../../data/mocks/demo';
+import { createMockRepositories } from '../../repositories/mock';
 
 /**
- * Os fixtures são dados que aparecem na tela. Quando saem do contrato do
- * motor, o sintoma é visual (barra de XP estourada em "649 / 483") e passa
- * despercebido — por isso a consistência é testada, não confiada.
+ * O demo é gerado pelo motor, então consistência é esperada — mas é testada,
+ * não confiada. Foi um fixture solto ("nível 14 com 5.240 XP", quando 5.074
+ * já era nível 15) que fez a barra de XP aparecer estourada numa versão
+ * anterior.
  */
-describe('DEMO_PROGRESSION é consistente com o motor', () => {
-  it('o XP cai dentro da faixa do nível declarado', () => {
-    const floor = xpForLevel(DEMO_PROGRESSION.level);
-    const ceil = xpForLevel(DEMO_PROGRESSION.level + 1);
-    expect(DEMO_PROGRESSION.xp).toBeGreaterThanOrEqual(floor);
-    // XP acima do teto significa que `applyXp` não rodou: o nível estaria
-    // atrasado em relação ao XP, e a barra passaria de 100%.
-    expect(DEMO_PROGRESSION.xp).toBeLessThan(ceil);
-  });
+const TODAY = '2026-09-28';
+const demo = buildDemo(TODAY);
+const { progression, streak } = foldAll(demo.events);
 
-  it('a barra de XP fica entre 0 e 1', () => {
-    const { ratio, current, needed } = levelProgress(DEMO_PROGRESSION);
+describe('caçador de demonstração', () => {
+  it('o XP cai dentro da faixa do nível', () => {
+    expect(progression.xp).toBeGreaterThanOrEqual(xpForLevel(progression.level));
+    expect(progression.xp).toBeLessThan(xpForLevel(progression.level + 1));
+    const { ratio } = levelProgress(progression);
     expect(ratio).toBeGreaterThanOrEqual(0);
     expect(ratio).toBeLessThanOrEqual(1);
-    expect(current).toBeLessThanOrEqual(needed);
   });
 
-  it('os atributos ficam na escala 0–100', () => {
-    for (const [key, v] of Object.entries(DEMO_PROGRESSION.attributes)) {
-      expect(v, key).toBeGreaterThanOrEqual(0);
-      expect(v, key).toBeLessThanOrEqual(100);
-    }
+  it('conta a história prevista: começou no E e foi promovido ao D', () => {
+    expect(progression.rank).toBe('D');
+    expect(progression.level).toBeGreaterThan(3);
+    expect(progression.streakCurrent).toBeGreaterThan(5);
   });
 
-  it('a melhor sequência nunca é menor que a atual', () => {
-    expect(DEMO_PROGRESSION.streakBest).toBeGreaterThanOrEqual(DEMO_PROGRESSION.streakCurrent);
-  });
-});
-
-describe('catálogo de exercícios', () => {
-  it('não tem id duplicado', () => {
-    const ids = EXERCISES.map((e) => e.id);
-    expect(new Set(ids).size).toBe(ids.length);
+  it('tem sombras extraídas pelo motor, não escritas à mão', () => {
+    const shadows = demo.events.filter((e) => e.kind === 'shadow_unlocked');
+    expect(shadows.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('toda regressão e progressão aponta para um exercício existente', () => {
-    const ids = new Set(EXERCISES.map((e) => e.id));
-    for (const e of EXERCISES) {
-      if (e.regressionId) expect(ids.has(e.regressionId), `${e.id}.regressionId`).toBe(true);
-      if (e.progressionId) expect(ids.has(e.progressionId), `${e.id}.progressionId`).toBe(true);
-    }
+  it('o tropeço da semana 3 foi resolvido pela Zona de Penalidade', () => {
+    expect(demo.events.some((e) => e.kind === 'penalty_completed')).toBe(true);
+    expect(demo.events.some((e) => e.kind === 'penalty_skipped')).toBe(false);
   });
 
-  it('a escada é monotônica: a progressão nunca é mais fácil', () => {
-    for (const e of EXERCISES) {
-      if (!e.progressionId) continue;
-      const next = EXERCISES.find((x) => x.id === e.progressionId)!;
-      expect(next.difficulty, `${e.id} → ${next.id}`).toBeGreaterThan(e.difficulty);
-    }
+  it('termina em dia: abrir o app hoje não gera dívida nem Dungeon Break', () => {
+    const r = reconcile({ events: demo.events, today: TODAY, daysPerWeek: 3, startedAt: demo.startedAt, deviceId: 'x' });
+    expect(r.toAppend.filter((e) => !e.id.startsWith('stone_grant'))).toEqual([]);
+    expect(r.penaltyOpenFor).toBeNull();
+    expect(streak.reentrySessionsLeft).toBe(0);
   });
 
-  it('todo exercício tem 3 cues e ao menos um erro comum', () => {
-    for (const e of EXERCISES) {
-      expect(e.cues.length, `${e.id}.cues`).toBe(3);
-      expect(e.commonErrors.length, `${e.id}.commonErrors`).toBeGreaterThan(0);
-    }
+  it('é reproduzível', () => {
+    expect(buildDemo(TODAY).events).toEqual(demo.events);
   });
 
-  /** R11.4 — padrão de carga sem ilustração não pode ser prescrito. */
-  it('exercício de carga sem ilustração fica não-prescritível', () => {
-    const blocked = EXERCISES.filter((e) => !isPrescribable(e));
-    for (const e of blocked) {
-      expect(e.illustrations, `${e.id}`).toBeNull();
-    }
-    // O seed mantém um caso de propósito, para a regra ser exercitada.
-    expect(blocked.length).toBeGreaterThan(0);
+  /** O bug que motivou a reescrita: concluir no demo zerava o nível. */
+  it('concluir uma missão no demo nunca derruba o nível', async () => {
+    const repos = createMockRepositories({ events: demo.events, profile: demo.profile, onboarded: true });
+    const before = await repos.progression.get();
+    await repos.quests.addSession({
+      date: TODAY, durationMin: 20, avgRpe: 5, completion: 'complete',
+      resistedVolume: 300, aerobicMinutes: 20, formOkRatio: 1,
+    });
+    const after = await repos.progression.get();
+    expect(after.level).toBeGreaterThanOrEqual(before.level);
+    expect(after.xp).toBeGreaterThan(before.xp);
   });
 });

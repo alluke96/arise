@@ -8,3 +8,4 @@ export * from './Button';
 export * from './RepCounter';
 export * from './icons';
 export * from './tokens';
+export * from './Controls';

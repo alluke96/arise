@@ -11,12 +11,15 @@ import { color } from './tokens';
  * botão de 44pt.
  */
 export function RepCounter({
-  value, target, unit, onIncrement,
+  value, target, unit, onIncrement, hint, ofLabel, accessibilityPrefix,
 }: {
   value: number;
   target: number;
   unit: string;
   onIncrement: () => void;
+  hint: string;
+  ofLabel: string;
+  accessibilityPrefix: string;
 }) {
   const [size, setSize] = useState({ w: 0, h: 0 });
   const c = 22;
@@ -24,7 +27,7 @@ export function RepCounter({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Registrar repetição. ${value} de ${target} ${unit}`}
+      accessibilityLabel={`${accessibilityPrefix}. ${value} ${ofLabel} ${target} ${unit}`}
       accessibilityValue={{ min: 0, max: target, now: value }}
       onPress={() => {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -43,8 +46,8 @@ export function RepCounter({
       )}
       <View style={styles.inner}>
         <Txt variant="statLg" style={styles.value}>{value}</Txt>
-        <Txt variant="body" tone="muted" style={styles.of}>de {target} {unit}</Txt>
-        <Txt variant="hudLabel" tone="blue" style={styles.hint}>Toque a cada repetição</Txt>
+        <Txt variant="body" tone="muted" style={styles.of}>{ofLabel} {target} {unit}</Txt>
+        <Txt variant="hudLabel" tone="blue" style={styles.hint}>{hint}</Txt>
       </View>
     </Pressable>
   );

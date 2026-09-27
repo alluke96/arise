@@ -95,7 +95,7 @@ describe('tom do Sistema', () => {
 
   it('o tom acompanha o idioma', () => {
     setLocale('en-US');
-    expect(systemText('questCompleted')).toContain('attribute points');
+    expect(systemText('questCompleted')).toContain('Quest complete');
     setTone('companion');
     expect(systemText('questCompleted')).toContain('good work');
   });

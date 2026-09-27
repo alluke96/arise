@@ -1,54 +1,46 @@
 import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { HudLabel, IconArrow, Screen, SystemButton, Txt, color, space } from '../../src/ui';
+import { useT } from '../../src/features/settings/store';
 
 export default function Despertar() {
   const router = useRouter();
+  const t = useT();
 
   return (
     <Screen tone="ritual">
       <View style={styles.root}>
         <View style={styles.signal}>
           <View style={styles.dot} />
-          <HudLabel tone="red" style={{ fontSize: 11 }}>Sinal detectado</HudLabel>
+          <HudLabel tone="red" style={{ fontSize: 11 }}>{t('onboarding.signalDetected')}</HudLabel>
         </View>
 
-        <View style={styles.log}>
-          <Txt variant="bodySm" tone="muted" style={styles.mono}>&gt; Analisando candidato…</Txt>
+        <View style={styles.log} accessibilityRole="text">
+          <Txt variant="bodySm" tone="muted" style={styles.mono}>&gt; {t('onboarding.analyzing')}</Txt>
           <Txt variant="bodySm" tone="muted" style={styles.mono}>
-            &gt; Capacidade de mana: <Txt tone="red" style={styles.mono}>não mensurável</Txt>
+            &gt; {t('onboarding.manaCapacity')}: <Txt tone="red" style={styles.mono}>{t('onboarding.notMeasurable')}</Txt>
           </Txt>
           <Txt variant="bodySm" tone="muted" style={styles.mono}>
-            &gt; Classificação provisória: <Txt style={styles.mono}>E</Txt>
+            &gt; {t('onboarding.provisionalRank')}: <Txt style={styles.mono}>E</Txt>
           </Txt>
-          <Txt variant="bodySm" tone="blue" style={styles.mono}>
-            &gt; Você é o caçador mais fraco da humanidade.
-          </Txt>
+          <Txt variant="bodySm" tone="blue" style={styles.mono}>&gt; {t('onboarding.weakestLine')}</Txt>
         </View>
 
         <View style={styles.center}>
-          {/* Wordmark: ÚNICO lugar onde o nome aparece. Trocar o nome é
-              trocar esta string e a chave app.name — nada mais. */}
-          <Txt style={styles.wordmark}>ARISE</Txt>
+          {/* Único lugar onde o nome aparece: trocar o nome é trocar app.name. */}
+          <Txt style={styles.wordmark} accessibilityRole="header">{t('app.name').toUpperCase()}</Txt>
           <View style={styles.rule} />
-          <HudLabel tone="purple" style={{ fontSize: 12 }}>Erguei-vos</HudLabel>
+          <HudLabel tone="purple" style={{ fontSize: 12 }}>{t('app.tagline')}</HudLabel>
           <Txt variant="body" tone="dim" style={styles.pitch}>
-            Ninguém mais recebeu este convite.{'\n'}
-            A partir de hoje, <Txt variant="bodyStrong">você é o Jogador</Txt> — o único que sobe de nível.
+            {t('onboarding.invitation')}{'\n'}
+            <Txt variant="bodyStrong">{t('onboarding.youArePlayer')}</Txt> {t('onboarding.onlyOneLevels')}
           </Txt>
         </View>
 
         <View style={styles.actions}>
-          <SystemButton
-            label="Aceitar"
-            icon={<IconArrow />}
-            onPress={() => router.push('/(onboarding)/biometria')}
-          />
-          <SystemButton label="Recusar" variant="ghost" height={48} />
-          <Txt variant="bodySm" tone="muted" style={styles.legal}>
-            Este app não substitui avaliação médica.{'\n'}
-            A triagem de saúde é obrigatória antes do primeiro treino.
-          </Txt>
+          <SystemButton label={t('common.accept')} icon={<IconArrow />}
+            onPress={() => router.push('/(onboarding)/biometria')} />
+          <Txt variant="bodySm" tone="muted" style={styles.legal}>{t('onboarding.medicalDisclaimer')}</Txt>
         </View>
       </View>
     </Screen>

@@ -21,9 +21,18 @@ insert into profiles (user_id, hunter_name, birth_year, gender, goal, days_per_w
 values (:'A', 'CACADOR-A', 1998, 'male', 'habit', 3, 20, '19:00', 'home', 'seed'),
        (:'B', 'CACADOR-B', 1995, 'female', 'health', 3, 20, '07:00', 'gym', 'seed');
 
+-- O MESMO id determinístico nos dois usuários: a chave é (user_id, id).
 insert into sessions (id, user_id, occurred_at, duration_min, avg_rpe, completion, device_id)
-values (gen_random_uuid(), :'A', now(), 20, 5, 'complete', 'seed'),
-       (gen_random_uuid(), :'B', now(), 30, 7, 'complete', 'seed');
+values ('session:2026-09-27', :'A', now(), 20, 5, 'complete', 'seed'),
+       ('session:2026-09-27', :'B', now(), 30, 7, 'complete', 'seed');
+
+insert into inactivity_events (id, user_id, occurred_at, days, device_id)
+values ('inactive:2026-09-20', :'A', now(), 2, 'seed'),
+       ('inactive:2026-09-20', :'B', now(), 3, 'seed');
+
+insert into exercise_adjustments (id, user_id, occurred_at, pattern, direction, from_id, to_id, device_id)
+values ('adjust:2026-09-27:push_h:push_wall', :'A', now(), 'push_h', 'easier', 'push_knee', 'push_wall', 'seed'),
+       ('adjust:2026-09-27:push_h:push_wall', :'B', now(), 'push_h', 'easier', 'push_knee', 'push_wall', 'seed');
 
 insert into body_metrics (id, user_id, measured_on, weight_kg, device_id)
 values (gen_random_uuid(), :'A', current_date, 89.1, 'seed'),
@@ -46,6 +55,12 @@ begin
   select count(*) into n from profiles;
   if n <> 1 then raise exception 'profiles: A deveria ver 1 linha, viu %', n; end if;
 
+  select count(*) into n from inactivity_events;
+  if n <> 1 then raise exception 'inactivity_events: A deveria ver 1 linha, viu %', n; end if;
+
+  select count(*) into n from exercise_adjustments;
+  if n <> 1 then raise exception 'exercise_adjustments: A deveria ver 1 linha, viu %', n; end if;
+
   -- Dado de saúde de outra pessoa: peso e triagem.
   select count(*) into n from body_metrics
     where user_id = '22222222-2222-2222-2222-222222222222';
@@ -63,11 +78,23 @@ do $$
 begin
   begin
     insert into sessions (id, user_id, occurred_at, duration_min, avg_rpe, completion, device_id)
-    values (gen_random_uuid(), '22222222-2222-2222-2222-222222222222', now(), 10, 3, 'partial', 'attack');
+    values ('session:2026-09-28', '22222222-2222-2222-2222-222222222222', now(), 10, 3, 'partial', 'attack');
     raise exception 'FALHA: A conseguiu inserir sessao no nome de B';
   exception
     when insufficient_privilege then raise notice 'insert cruzado recusado';
   end;
+end $$;
+
+-- Reenvio do mesmo evento é idempotente (B2.3).
+do $$
+declare n int;
+begin
+  insert into sessions (id, user_id, occurred_at, duration_min, avg_rpe, completion, device_id)
+  values ('session:2026-09-27', '11111111-1111-1111-1111-111111111111', now(), 20, 5, 'complete', 'retry')
+  on conflict (user_id, id) do nothing;
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception 'FALHA: reenvio duplicou a sessao'; end if;
+  raise notice 'reenvio idempotente';
 end $$;
 
 -- Atualizar linha alheia não deve afetar nenhuma linha.

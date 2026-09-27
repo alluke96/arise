@@ -5,21 +5,29 @@ import {
   HudLabel, IconCheck, IconInfo, Screen, SystemButton, SystemWindow, Txt,
   color, font, space,
 } from '../src/ui';
-import { useT } from '../src/features/settings/store';
+import { useLocale, useT } from '../src/features/settings/store';
+import { useHunter } from '../src/features/hunter/store';
+import { useBilling } from '../src/features/billing/store';
 import { PLANS, TRIAL_DAYS, annualSavingPercent } from '../src/core/billing/entitlement';
-import { formatNumber } from '../src/core/i18n';
+import { formatNumber, type TKey } from '../src/core/i18n';
 
-const INCLUDED = [
-  'Missão Diária calibrada ao seu nível',
-  'Jornada completa do Rank E ao Rank S',
-  '80 exercícios com escada de progressão',
-  'Zona de Penalidade e Pedras de Recuperação',
-  'Exército de Sombras com 40 conquistas',
+const INCLUDED: TKey[] = [
+  'billing.included.quest',
+  'billing.included.journey',
+  'billing.included.exercises',
+  'billing.included.penalty',
+  'billing.included.shadows',
 ];
 
 export default function Paywall() {
   const router = useRouter();
   const t = useT();
+  const locale = useLocale();
+  const startedAt = useHunter((s) => s.startedAt);
+  const rank = useHunter((s) => s.progression.rank);
+  const entitlement = useBilling((s) => s.entitlement);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
   // R13.4 — o anual já vem selecionado.
   const [plan, setPlan] = useState<'monthly' | 'annual'>('annual');
   const saving = annualSavingPercent();
@@ -31,15 +39,24 @@ export default function Paywall() {
         <View style={styles.head}>
           <HudLabel tone="blue">{t('billing.trialTitle')}</HudLabel>
           <Txt variant="title" style={styles.title}>
-            Você saiu do Rank E.{'\n'}Continue subindo.
+            {t(rank === 'E' ? 'billing.headlineE' : 'billing.headline', { rank })}
           </Txt>
+          {entitlement && (
+            <Txt variant="bodySm" tone={entitlement.canTrain ? 'dim' : 'red'}>
+              {entitlement.state === 'trial'
+                ? t('settings.subTrial', { days: entitlement.trialDaysLeft })
+                : entitlement.state === 'subscribed'
+                  ? t('billing.alreadySubscribed')
+                  : entitlement.canTrain ? '' : t('billing.lockedNote')}
+            </Txt>
+          )}
         </View>
 
         <SystemWindow padding={18}>
-          {INCLUDED.map((line) => (
-            <View key={line} style={styles.includedRow}>
+          {INCLUDED.map((key) => (
+            <View key={key} style={styles.includedRow}>
               <IconCheck size={15} />
-              <Txt variant="bodySm" style={{ flex: 1 }}>{line}</Txt>
+              <Txt variant="bodySm" style={{ flex: 1 }}>{t(key)}</Txt>
             </View>
           ))}
         </SystemWindow>
@@ -70,7 +87,7 @@ export default function Paywall() {
                   )}
                 </View>
                 <Txt variant="stat" tone={on ? 'default' : 'locked'} style={{ fontSize: 24 }}>
-                  R$ {formatNumber(p.priceBRL, 'pt-BR', 2)}
+                  R$ {formatNumber(p.priceBRL, locale, 2)}
                   <Txt variant="bodySm" tone="muted" style={{ fontSize: 13 }}>
                     {t(isAnnual ? 'billing.perYear' : 'billing.perMonth')}
                   </Txt>
@@ -84,14 +101,36 @@ export default function Paywall() {
         <Txt variant="bodySm" tone="dim" style={styles.disclosure}>
           {t('billing.trialDisclosure', {
             days: TRIAL_DAYS,
-            price: `R$ ${formatNumber(selected.priceBRL, 'pt-BR', 2)}`,
+            price: `R$ ${formatNumber(selected.priceBRL, locale, 2)}`,
             period: t(plan === 'annual' ? 'billing.perYear' : 'billing.perMonth'),
           })}
         </Txt>
 
-        <SystemButton label={t('common.continue')} height={58} onPress={() => router.back()} />
-        <SystemButton label={t('billing.restore')} variant="ghost" height={46}
-          onPress={() => router.back()} />
+        {message && <Txt variant="bodySm" tone="blue" style={styles.disclosure}>{message}</Txt>}
+
+        <SystemButton label={busy ? '…' : t('billing.subscribe')} height={58} disabled={busy}
+          onPress={async () => {
+            setBusy(true);
+            try {
+              await useBilling.getState().purchase(plan, startedAt);
+              router.back();
+            } finally {
+              setBusy(false);
+            }
+          }} />
+        <SystemButton label={t('billing.restore')} variant="ghost" height={46} disabled={busy}
+          onPress={async () => {
+            setBusy(true);
+            try {
+              await useBilling.getState().restore(startedAt);
+              const e = useBilling.getState().entitlement;
+              setMessage(t(e?.state === 'subscribed' ? 'billing.restored' : 'billing.nothingToRestore'));
+            } finally {
+              setBusy(false);
+            }
+          }} />
+        <SystemButton label={t('common.back')} variant="ghost" height={46} onPress={() => router.back()} />
+        <Txt variant="bodySm" tone="muted" style={styles.disclosure}>{t('billing.fakeStoreNote')}</Txt>
 
         {/* R13.11 — em texto normal, não em letra miúda. */}
         <View style={styles.dataNotice}>

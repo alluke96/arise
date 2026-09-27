@@ -4,7 +4,8 @@ import type { DailyQuest } from '../../types';
 
 const quest = (over: Partial<DailyQuest> = {}): DailyQuest => ({
   id: 'q', date: '2026-09-21', rank: 'D', objectives: [], status: 'pending',
-  deadline: '2026-09-21T23:59:59.000Z', isDeload: false, isRestDay: false,
+  // Local, como o app gera (`${date}T23:59:59`). Com 'Z' o teste só passava em UTC.
+  deadline: '2026-09-21T23:59:59', isDeload: false, isRestDay: false,
   xpAwarded: null, ...over,
 });
 
@@ -62,5 +63,14 @@ describe('plano de notificações', () => {
     for (const n of planNotifications(quest(), '19:00', DEFAULT_PREFS, MORNING)) {
       expect(n.systemKey.length).toBeGreaterThan(3);
     }
+  });
+});
+
+describe('fuso horário', () => {
+  /** Regressão: o horário escolhido era montado em UTC. */
+  it('o aviso da missão sai no horário LOCAL escolhido, não em UTC', () => {
+    const out = planNotifications(quest(), '19:00', DEFAULT_PREFS, '2026-09-21T00:00:00');
+    const first = out.find((n) => n.kind === 'quest_available')!;
+    expect(new Date(first.at).getTime()).toBe(new Date('2026-09-21T19:00:00').getTime());
   });
 });

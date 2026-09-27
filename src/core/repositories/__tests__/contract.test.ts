@@ -216,6 +216,68 @@ describe.each(IMPLS)('contrato de repositorio — %s', (_name, make) => {
   });
 });
 
+describe.each(IMPLS)('contrato: dados de app — %s', (_name, make) => {
+  let repos: Repositories;
+  beforeEach(() => { repos = make(); });
+
+  it('grava a data de início ao concluir o onboarding, uma vez só', async () => {
+    await repos.profile.save(profile);
+    expect(await repos.profile.startedAt()).toBeNull();
+    await repos.profile.completeOnboarding('2026-09-13');
+    await repos.profile.completeOnboarding('2026-10-01');
+    expect(await repos.profile.startedAt()).toBe('2026-09-13');
+  });
+
+  it('busca missões por intervalo, em ordem', async () => {
+    for (const d of ['2026-09-10', '2026-09-14', '2026-09-20']) {
+      await repos.quests.save({
+        id: `q-${d}`, date: d, rank: 'E', objectives: [], status: 'pending',
+        deadline: `${d}T23:59:59`, isDeload: false, isRestDay: false, xpAwarded: null,
+      });
+    }
+    expect((await repos.quests.between('2026-09-11', '2026-09-20')).map((q) => q.date))
+      .toEqual(['2026-09-14', '2026-09-20']);
+  });
+
+  /** Bug anterior: sessões vindas de backup só existiam como evento e sumiam do histórico. */
+  it('sessões importadas como evento aparecem no histórico', async () => {
+    await repos.events.append({
+      id: 'imp', at: '2026-09-02T12:00:00.000Z', deviceId: 'other', kind: 'session_completed',
+      session: session('2026-09-02'),
+    });
+    expect((await repos.quests.recentSessions(10)).map((s) => s.date)).toEqual(['2026-09-02']);
+  });
+
+  it('dia de descanso não aparece como sessão de treino', async () => {
+    await repos.events.append({
+      id: 'rest', at: '2026-09-03T12:00:00.000Z', deviceId: 'd', kind: 'session_completed',
+      session: { ...session('2026-09-03'), rest: true },
+    });
+    expect(await repos.quests.recentSessions(10)).toEqual([]);
+  });
+
+  it('guarda estado de app chave-valor', async () => {
+    expect(await repos.app.getValue('device_id')).toBeNull();
+    await repos.app.setValue('device_id', 'abc');
+    await repos.app.setValue('device_id', 'def');
+    expect(await repos.app.getValue('device_id')).toBe('def');
+  });
+
+  it('apagar tudo apaga tudo', async () => {
+    await repos.profile.save(profile);
+    await repos.profile.completeOnboarding('2026-09-13');
+    await repos.quests.addSession(session('2026-09-14'));
+    await repos.app.setValue('k', 'v');
+    await repos.app.wipe();
+    expect(await repos.profile.get()).toBeNull();
+    expect(await repos.profile.isOnboarded()).toBe(false);
+    expect(await repos.profile.startedAt()).toBeNull();
+    expect(await repos.events.all()).toEqual([]);
+    expect(await repos.app.getValue('k')).toBeNull();
+    expect((await repos.progression.get()).level).toBe(1);
+  });
+});
+
 describe('migrations', () => {
   it('rodar duas vezes e idempotente', async () => {
     const driver = createNodeDriver(':memory:');
