@@ -21,11 +21,16 @@ que sincronizar. As tarefas 1–4 abaixo não dependem disso e já foram feitas.
 
 ## Fase B — Sincronização (depende da Fase 2 do MVP)
 
-- [ ] **5. Fila de mutações persistente, com recuo exponencial** — _Req: B3.3, B3.5, B3.8_
+> As tarefas 6, 7 e 8 exigem um projeto Supabase provisionado para serem
+> verificadas de verdade. Escrever o cliente sem poder exercitá-lo contra o
+> servidor produziria código não testado na camada que carrega o histórico de
+> treino — deixado explicitamente pendente em vez de entregue sem verificação.
+
+- [x] **5. Fila de mutações persistente, com recuo exponencial** — lógica pura em `src/core/sync/queue.ts`, com teste de que falha nunca descarta evento — _Req: B3.3, B3.5, B3.8_
 - [ ] **6. Cliente Supabase e push por delta com upsert idempotente** — _Req: B3.4, B2.5_
 - [ ] **7. Pull por cursor com paginação e re-fold** — _Req: B3.4, B3.6_
 - [ ] **8. Sincronização em segundo plano, fora do caminho crítico** — _Req: B3.1, B3.2_
-- [ ] **9. Indicador de estado da sincronização em Configurações** — _Req: B3.7_
+- [x] **9. Indicador de estado da sincronização em Configurações** — _Req: B3.7_
 
 ## Fase C — Contas
 

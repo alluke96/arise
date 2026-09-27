@@ -34,11 +34,18 @@ export default function StatusScreen() {
 
         <View style={styles.header}>
           <HudLabel tone="muted" style={{ fontSize: 10 }}>Associação de Caçadores</HudLabel>
-          <Link href="/reavaliacao" asChild>
-            <Pressable accessibilityRole="button" accessibilityLabel="Reavaliação de Rank" hitSlop={12}>
-              <HudLabel tone="blue" style={{ fontSize: 10 }}>Reavaliar</HudLabel>
-            </Pressable>
-          </Link>
+          <View style={styles.headerActions}>
+            <Link href="/reavaliacao" asChild>
+              <Pressable accessibilityRole="button" accessibilityLabel="Reavaliação de Rank" hitSlop={12}>
+                <HudLabel tone="blue" style={{ fontSize: 10 }}>Reavaliar</HudLabel>
+              </Pressable>
+            </Link>
+            <Link href="/ajustes" asChild>
+              <Pressable accessibilityRole="button" accessibilityLabel="Ajustes" hitSlop={12}>
+                <HudLabel tone="muted" style={{ fontSize: 10 }}>Ajustes</HudLabel>
+              </Pressable>
+            </Link>
+          </View>
         </View>
 
         <SystemWindow padding={17}>
@@ -139,6 +146,7 @@ export default function StatusScreen() {
 const styles = StyleSheet.create({
   content: { padding: space.lg, paddingBottom: 40, gap: space.lg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerActions: { flexDirection: 'row', gap: 16 },
   hunterRow: { flexDirection: 'row', alignItems: 'center', gap: 13 },
   hunterInfo: { flex: 1 },
   xpRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 8, marginBottom: 5 },
