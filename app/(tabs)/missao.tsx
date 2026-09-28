@@ -72,7 +72,7 @@ export default function MissaoScreen() {
                   <IconClock />
                   <Txt variant="bodySm" tone="dim" style={{ fontSize: 13 }}>{t('quest.deadline')}</Txt>
                 </View>
-                <Countdown deadline={quest.deadline} style={{ fontSize: 19 }} />
+                <Countdown deadline={quest.deadline} size={19} />
               </View>
             )}
             {quest.isDeload && <Txt variant="bodySm" tone="blue">{sys('deloadWeek')}</Txt>}

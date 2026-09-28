@@ -101,8 +101,9 @@ export function createSqliteRepositories(db: SqlDriver): Repositories {
     const read = db.get<Row>("select value from app_state where key = 'articles_read'");
     return {
       avgSteps: Number(h?.steps ?? 0),
-      avgSleepHours: Number(h?.sleep ?? 420) / 60,
-      mobilityScore: 50,
+      // Sem amostra de saúde, 0 = não medido (não "7 h de sono" inventadas).
+      avgSleepHours: Number(h?.sleep ?? 0) / 60,
+      mobilityScore: 0,
       articlesRead: Number(read?.value ?? 0),
       weeksPlanned: 0,
     };

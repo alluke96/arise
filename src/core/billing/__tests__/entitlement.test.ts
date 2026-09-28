@@ -154,6 +154,14 @@ describe('planos', () => {
     expect(pct).toBeLessThan(100);
   });
 
+  it('preço decidido: R$ 2/mês, anual abaixo de 12 mensalidades', () => {
+    const monthly = PLANS.find((p) => p.id === 'monthly')!;
+    const annual = PLANS.find((p) => p.id === 'annual')!;
+    expect(monthly.priceBRL).toBe(2);
+    expect(annual.priceBRL).toBeLessThan(monthly.priceBRL * 12);
+    expect(annualSavingPercent()).toBe(46);
+  });
+
   it('há preço nas duas moedas', () => {
     for (const p of PLANS) {
       expect(p.priceBRL).toBeGreaterThan(0);

@@ -1108,7 +1108,7 @@ O paywall cai exatamente no pior dia possível para um sedentário:
 | **Teste** | 3 dias, acesso total, sem função bloqueada |
 | **Cartão na entrada?** | **Não.** Teste sem cartão aumenta topo de funil; o custo é conversão menor, que é o trade-off certo num app de hábito |
 | **Planos** | Mensal e anual. **Anual pré-selecionado** no paywall, com o desconto explícito em % |
-| **Preço sugerido pt-BR** | R$ 19,90/mês · R$ 99,90/ano (58% off) |
+| **Preço pt-BR** | R$ 2,00/mês · R$ 12,90/ano (46% off) |
 | **Preço sugerido en-US** | US$ 4,99/mês · US$ 29,99/ano |
 | **Depois do teste** | App inteiro bloqueado, **exceto**: histórico em leitura, exportação de dados e a tela de assinatura |
 | **Nunca bloquear** | Exportação dos próprios dados. Cobrar para a pessoa recuperar o que ela registrou é abusivo e provavelmente fere o CDC |
@@ -1244,7 +1244,7 @@ Todas resolvidas em 21/09/2026.
 ### Decisões que ainda vão precisar de dados, não de opinião
 
 - **Duração do teste grátis.** Implementado como valor configurável. Os primeiros 500 usuários decidem se 3 dias, 7 dias ou 3 missões converte melhor (§22.1).
-- **Preço.** R$ 19,90/mês e R$ 99,90/ano são ponto de partida, para revisão na v1.1 (§22.2).
+- **Preço.** R$ 2,00/mês e R$ 12,90/ano (decisão de set/2026), para revisão na v1.1 com dados de conversão (§22.2).
 - **Nome definitivo.** Prazo: antes do primeiro build de teste externo (§20).
 
 ---

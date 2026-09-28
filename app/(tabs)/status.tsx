@@ -155,7 +155,7 @@ export default function StatusScreen() {
                 {!done && !quest.isRestDay && (
                   <View style={styles.deadline}>
                     <IconClock />
-                    <Countdown deadline={quest.deadline} style={{ fontSize: 13 }} />
+                    <Countdown deadline={quest.deadline} size={13} />
                   </View>
                 )}
               </View>

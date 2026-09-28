@@ -143,8 +143,11 @@ export interface Plan {
 }
 
 export const PLANS: Plan[] = [
-  { id: 'monthly', priceBRL: 19.9, priceUSD: 4.99, preselected: false },
-  { id: 'annual', priceBRL: 99.9, priceUSD: 29.99, preselected: true },
+  // R$ 2/mês por decisão de produto (set/2026). O anual sai a ~R$ 1,07/mês,
+  // 46% abaixo de 12 mensalidades — o desconto precisa ser grande para o
+  // anual pré-selecionado fazer sentido (R13.4).
+  { id: 'monthly', priceBRL: 2.0, priceUSD: 0.99, preselected: false },
+  { id: 'annual', priceBRL: 12.9, priceUSD: 5.99, preselected: true },
 ];
 
 /** Desconto do anual sobre 12 meses do mensal, para exibir no paywall. */

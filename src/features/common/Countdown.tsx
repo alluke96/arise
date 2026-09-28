@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { TextStyle } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Txt } from '../../ui';
 import { formatCountdown, nowMs } from '../../core/clock';
 
@@ -13,8 +13,8 @@ const FRAME_MS = 33;
  * contém. Usa o relógio do app (que o Laboratório pode adiantar), não
  * `Date.now()` direto.
  */
-export function Countdown({ deadline, tone = 'red', style }: {
-  deadline: string | undefined; tone?: 'red' | 'dim'; style?: TextStyle;
+export function Countdown({ deadline, tone = 'red', size = 16 }: {
+  deadline: string | undefined; tone?: 'red' | 'dim'; size?: number;
 }) {
   const end = deadline ? new Date(deadline).getTime() : 0;
   const [left, setLeft] = useState(() => end - nowMs());
@@ -37,15 +37,28 @@ export function Countdown({ deadline, tone = 'red', style }: {
   }, [end]);
 
   const text = formatCountdown(left);
+  // Largura TRAVADA: cada caractere numa célula de largura fixa. A fonte do
+  // app não tem dígitos de largura igual (e o Android ignora tabular-nums em
+  // fonte customizada), então "1" e "8" mudavam a largura a cada quadro.
+  const digitW = Math.ceil(size * 0.66);
+  const sepW = Math.ceil(size * 0.34);
   return (
-    <Txt
-      variant="stat"
-      tone={tone}
-      // Dígitos de largura fixa: sem isso o texto "treme" a cada milissegundo.
-      style={[{ fontVariant: ['tabular-nums'] }, style]}
-      accessibilityLabel={text.slice(0, 8)}
-    >
-      {text}
-    </Txt>
+    <View style={styles.row} accessible accessibilityRole="timer" accessibilityLabel={text.slice(0, 8)}>
+      {text.split('').map((ch, i) => (
+        <Txt
+          key={i}
+          variant="stat"
+          tone={tone}
+          allowFontScaling={false}
+          style={{ width: /\d/.test(ch) ? digitW : sepW, fontSize: size, lineHeight: size * 1.25, textAlign: 'center' }}
+        >
+          {ch}
+        </Txt>
+      ))}
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center' },
+});

@@ -33,7 +33,8 @@ export interface FoldContext {
 }
 
 export const DEFAULT_FOLD_CONTEXT: FoldContext = {
-  avgSteps: 0, avgSleepHours: 7, mobilityScore: 50, articlesRead: 0, weeksPlanned: 0,
+  // 0 = não medido. Nenhum atributo ganha ponto por dado inventado.
+  avgSteps: 0, avgSleepHours: 0, mobilityScore: 0, articlesRead: 0, weeksPlanned: 0,
 };
 
 /**
@@ -136,6 +137,7 @@ export function foldAll(
     avgSteps: ctx.avgSteps,
     avgSleepHours: ctx.avgSleepHours,
     formOkRatio: avgFormOk(sessions),
+    formOkTotal: sessions.reduce((a, s) => a + s.formOkRatio, 0),
     articlesRead: ctx.articlesRead,
     weeksPlanned: ctx.weeksPlanned,
   });
