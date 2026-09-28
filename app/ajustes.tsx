@@ -12,6 +12,8 @@ import { exportToFile, importFromFile } from '../src/features/backup/files';
 import { syncNotifications } from '../src/features/notifications/adapter';
 import { LOCALES, LOCALE_LABEL, formatLength, formatMass, type TKey } from '../src/core/i18n';
 import type { NotificationPrefs } from '../src/core/notifications/schedule';
+import { TEST_BUILD } from '../src/core/config';
+import { useAuth } from '../src/features/auth/store';
 
 export default function Ajustes() {
   const router = useRouter();
@@ -210,6 +212,15 @@ export default function Ajustes() {
             <Txt variant="bodySm" tone="dim">{t('settings.exportNote')}</Txt>
           </Note>
         </Section>
+
+        {TEST_BUILD && (
+          <Section label={t('lab.title')}>
+            <SystemButton label={t('lab.open')} variant="blue" height={46}
+              onPress={() => router.push('/laboratorio')} />
+            <SystemButton label={t('auth.logout')} variant="ghost" height={46}
+              onPress={async () => { await useAuth.getState().logout(); router.replace('/login'); }} />
+          </Section>
+        )}
 
         <SystemButton label={t('settings.deleteAccount')} variant="danger" height={50} onPress={onWipe} />
       </ScrollView>

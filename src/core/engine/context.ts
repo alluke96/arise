@@ -6,7 +6,7 @@ import type {
 import { addDays, isTrainingDay, weekIndexOf } from './calendar';
 import { foldLadder } from './ladder';
 import type { QuestInput } from './quest';
-import type { WeeklyReference } from './scaling';
+import { loadFactor, type WeeklyReference } from './scaling';
 
 /**
  * R4.5 — referência de carga da semana anterior, POR PADRÃO.
@@ -23,24 +23,34 @@ export function lastWeekReference(
   const out: Partial<Record<Pattern, WeeklyReference>> = {};
   const patterns = new Set(catalog.map((e) => e.pattern));
 
-  for (const pattern of patterns) {
-    for (let k = 1; k <= 3; k++) {
-      const to = addDays(today, -7 * k);
-      const from = addDays(to, -6);
-      const objectives = quests
-        .filter((q) => q.date >= from && q.date <= to && !q.isDeload && !q.isRestDay)
-        .sort((a, b) => (a.date < b.date ? 1 : -1))
-        .flatMap((q) => q.objectives)
-        .filter((o) => byId.get(o.exerciseId)?.pattern === pattern);
+  const reference = (pattern: Pattern, from: string, to: string): WeeklyReference | null => {
+    const objectives = quests
+      .filter((q) => q.date >= from && q.date <= to && !q.isDeload && !q.isRestDay)
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+      .flatMap((q) => q.objectives)
+      .filter((o) => byId.get(o.exerciseId)?.pattern === pattern);
+    if (objectives.length === 0) return null;
+    const unit = objectives[0].unit;
+    const load = Math.max(...objectives
+      .filter((o) => o.unit === unit)
+      .map((o) => o.targetValue * loadFactor(o.unit, byId.get(o.exerciseId)?.difficulty ?? 1)));
+    return { load, unit };
+  };
 
-      if (objectives.length === 0) continue;
-      const unit = objectives[0].unit;
-      const load = Math.max(...objectives
-        .filter((o) => o.unit === unit)
-        .map((o) => o.targetValue * (byId.get(o.exerciseId)?.difficulty ?? 1)));
-      out[pattern] = { load, unit };
-      break;
+  for (const pattern of patterns) {
+    let ref: WeeklyReference | null = null;
+    for (let k = 1; k <= 3 && !ref; k++) {
+      const to = addDays(today, -7 * k);
+      ref = reference(pattern, addDays(to, -6), to);
     }
+    // Sem semana anterior (início de uso): a própria semana vira teto, sem
+    // crescimento. Sem isso, a troca de degrau no começo da semana 2 saía sem
+    // teto nenhum e dobrava a carga.
+    if (!ref) {
+      const current = reference(pattern, addDays(today, -6), addDays(today, -1));
+      if (current) ref = { ...current, growth: false };
+    }
+    if (ref) out[pattern] = ref;
   }
   return out;
 }

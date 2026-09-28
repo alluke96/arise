@@ -1,11 +1,19 @@
+import { TEST_BUILD } from '../core/config';
 import type { ShadowRule } from '../core/engine/shadows';
+
+/**
+ * Sombras que dependem de passos/distância vindos do HealthKit ou do Health
+ * Connect. Sem essa conexão (build de teste), ficam indisponíveis em vez de
+ * mostrarem uma barra de progresso que nunca anda.
+ */
+export const HEALTH_SHADOWS = ['sabujo', 'andarilho', 'peregrino'] as const;
 
 /**
  * Regra de cada uma das 40 sombras. O texto em `shadows.ts` é o que o usuário
  * lê; isto é o que o motor avalia. O teste de catálogo garante que as duas
  * listas têm exatamente os mesmos ids.
  */
-export const SHADOW_RULES: Record<string, ShadowRule> = {
+const BASE_RULES: Record<string, ShadowRule> = {
   sentinela: { kind: 'sessions', count: 1 },
   batedor: { kind: 'streak', days: 7 },
   sabujo: { kind: 'steps_day', steps: 10000 },
@@ -52,3 +60,12 @@ export const SHADOW_RULES: Record<string, ShadowRule> = {
   preparacao: { kind: 'canonical_day' },
   primeiro: { kind: 'from_e_to', rank: 'S' },
 };
+
+export const SHADOW_RULES: Record<string, ShadowRule> = TEST_BUILD
+  ? {
+    ...BASE_RULES,
+    ...Object.fromEntries(HEALTH_SHADOWS.map((id) => [
+      id, { kind: 'unavailable', reason: 'Sem conexão com HealthKit/Health Connect nesta build' } as ShadowRule,
+    ])),
+  }
+  : BASE_RULES;

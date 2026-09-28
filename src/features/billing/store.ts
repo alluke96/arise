@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { evaluateAccess, type Entitlement, type Subscription } from '../../core/billing/entitlement';
 import { DEMO_MODE, repositories } from '../../core/repositories';
+import { TEST_BUILD } from '../../core/config';
 
 /**
  * Direito de acesso no app.
@@ -31,7 +32,8 @@ export const useBilling = create<BillingState>((set, get) => ({
   subscription: null,
 
   async refresh(startedAt) {
-    let subscription: Subscription | null = DEMO_MODE ? UNLIMITED : null;
+    // Demo e build de teste pessoal: acesso liberado, sem teste grátis nem paywall.
+    let subscription: Subscription | null = DEMO_MODE || TEST_BUILD ? UNLIMITED : null;
     const raw = await repositories.app.getValue(SUB_KEY);
     try { if (raw) subscription = JSON.parse(raw) as Subscription; } catch { /* sem assinatura */ }
     const now = new Date().toISOString();

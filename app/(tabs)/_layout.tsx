@@ -1,4 +1,6 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
+import { useAuth } from '../../src/features/auth/store';
+import { TEST_BUILD } from '../../src/core/config';
 import { Platform } from 'react-native';
 import { IconArmy, IconBook, IconHome, IconSword } from '../../src/ui/icons';
 import { color, font } from '../../src/ui/tokens';
@@ -6,6 +8,9 @@ import { useT } from '../../src/features/settings/store';
 
 export default function TabsLayout() {
   const t = useT();
+  const loggedIn = useAuth((s) => s.loggedIn);
+  // Build de teste: link direto para uma aba não pula o login.
+  if (TEST_BUILD && !loggedIn) return <Redirect href="/login" />;
   return (
     <Tabs
       screenOptions={{

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { scaleObjective, type ScalingContext } from '../scaling';
+import {
+  MIN_WEEKLY_STEP, loadFactor, scaleObjective, weeklyCeiling, type ScalingContext,
+} from '../scaling';
 import { generateDailyQuest, type QuestInput } from '../quest';
 import { EXERCISES, exerciseById } from '../../../data/exercises';
 import { MAX_WEEKLY_INCREASE } from '../guards';
@@ -50,11 +52,41 @@ describe('teto semanal no caminho real', () => {
         reentry: r() > 0.8,
       });
       const target = scaleObjective(c);
-      const cap = Math.floor((lastLoad * (1 + MAX_WEEKLY_INCREASE)) / difficulty);
-      if (cap >= 1) {
-        expect(target * difficulty, JSON.stringify(c)).toBeLessThanOrEqual(lastLoad * 1.1 + 1e-9);
+      // +10% de carga, ou o passo mínimo da unidade quando 10% não chega a ele.
+      const f = loadFactor(unit, difficulty);
+      const allowed = Math.max(
+        lastLoad * (1 + MAX_WEEKLY_INCREASE),
+        (Math.floor(lastLoad / f) + MIN_WEEKLY_STEP[unit]) * f,
+      );
+      if (Math.floor(allowed / f) >= 1) {
+        expect(target * f, JSON.stringify(c)).toBeLessThanOrEqual(allowed + 1e-9);
       }
     }
+  });
+
+  it('número pequeno não congela: 9 minutos viram 10, 6 repetições viram 7', () => {
+    expect(weeklyCeiling({ load: 9, unit: 'minutes' }, 'minutes', 3)).toBe(10);
+    expect(weeklyCeiling({ load: 6 * 3, unit: 'reps' }, 'reps', 3)).toBe(7);
+    expect(weeklyCeiling({ load: 13, unit: 'seconds' }, 'seconds', 1)).toBe(15);
+    // Número grande segue os 10%.
+    expect(weeklyCeiling({ load: 40, unit: 'reps' }, 'reps', 1)).toBe(44);
+  });
+
+  it('referência da própria semana (primeira semana de uso) não deixa crescer', () => {
+    expect(weeklyCeiling({ load: 9, unit: 'reps', growth: false }, 'reps', 1)).toBe(9);
+    // Trocar para um degrau com o dobro da dificuldade divide o alvo.
+    expect(weeklyCeiling({ load: 9, unit: 'reps', growth: false }, 'reps', 2)).toBe(4);
+  });
+
+  it('quem vem cumprindo vai ao teto; quem não vem, fica na base', () => {
+    const lastWeek = { load: 20, unit: 'reps' as const };
+    expect(scaleObjective(ctx({ rank: 'E', difficulty: 1, progression: 1.05, readiness: 1, lastWeek }))).toBe(22);
+    expect(scaleObjective(ctx({ rank: 'E', difficulty: 1, progression: 1, readiness: 1, lastWeek }))).toBe(10);
+  });
+
+  it('minutos de aeróbico não se dividem pela dificuldade do degrau', () => {
+    expect(loadFactor('minutes', 8)).toBe(1);
+    expect(loadFactor('reps', 8)).toBe(8);
   });
 
   it('subir para um degrau mais difícil reduz as repetições permitidas', () => {

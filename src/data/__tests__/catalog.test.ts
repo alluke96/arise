@@ -76,10 +76,12 @@ describe('catalogo de exercicios', () => {
     }
   });
 
-  it('exercicio de carga sem ilustracao e nao-prescritivel', () => {
+  it('exercicio de carga sem ilustracao e nao-prescritivel quando a regra esta ligada', () => {
     for (const e of EXERCISES) {
       if (!LOAD_PATTERNS.includes(e.pattern as (typeof LOAD_PATTERNS)[number])) continue;
-      expect(isPrescribable(e), `${e.id}`).toBe(e.illustrations !== null);
+      expect(isPrescribable(e, true), `${e.id}`).toBe(e.illustrations !== null);
+      // Build de teste: a regra desligada libera tudo.
+      expect(isPrescribable(e, false), `${e.id}`).toBe(true);
     }
   });
 

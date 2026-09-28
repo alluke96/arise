@@ -1,6 +1,8 @@
+import { REQUIRE_ILLUSTRATIONS } from '../config';
 import { normalizeEvents, type DomainEvent } from '../sync/events';
-import type { Exercise, Pattern, Rank, UserProfile } from '../types';
+import type { Exercise, Pattern, Rank, Unit, UserProfile } from '../types';
 import { rankAtLeast } from './rank';
+import { loadFactor } from './scaling';
 
 /** Padrões que exigem par de ilustrações para serem prescritos (R11.3/R11.4). */
 export const LOAD_PATTERNS: Pattern[] = [
@@ -8,13 +10,33 @@ export const LOAD_PATTERNS: Pattern[] = [
   'unilateral', 'core_anti_ext', 'core_anti_rot', 'trunk_flex',
 ];
 
-export function isPrescribable(ex: Exercise): boolean {
-  if (!LOAD_PATTERNS.includes(ex.pattern)) return true;
+export function isPrescribable(ex: Exercise, requireIllustrations = REQUIRE_ILLUSTRATIONS): boolean {
+  if (!requireIllustrations || !LOAD_PATTERNS.includes(ex.pattern)) return true;
   return ex.illustrations !== null;
 }
 
 /** Duas sessões seguidas com o alvo cumprido e boa forma → próximo degrau (§3.4). */
 export const ADVANCE_AFTER = 2;
+
+/**
+ * Dose mínima que o degrau SEGUINTE precisa render para valer a troca.
+ *
+ * Subir de degrau preserva a carga: 9 flexões na parede (dificuldade 1) viram
+ * 4 no balcão (dificuldade 2). Trocar cedo demais derrubava o alvo para 3 ou 4
+ * repetições — pouco para aprender o movimento e desanimador. Fica no degrau
+ * atual até o próximo começar com pelo menos isto.
+ */
+export const MIN_DOSE_AFTER_ADVANCE: Record<Unit, number> = {
+  reps: 8, seconds: 15, minutes: 10, meters: 30,
+};
+
+/** O próximo degrau, começando com a carga de `value` no atual, rende a dose mínima? */
+export function worthAdvancing(current: Exercise, next: Exercise, value: number): boolean {
+  if (next.unit !== current.unit) return true;
+  const dose = Math.floor((value * loadFactor(current.unit, current.difficulty))
+    / loadFactor(next.unit, next.difficulty));
+  return dose >= MIN_DOSE_AFTER_ADVANCE[next.unit];
+}
 
 /**
  * Degraus que ESTE usuário pode fazer num padrão: prescritíveis, com o
@@ -26,7 +48,7 @@ export function eligibleRungs(
 ): Exercise[] {
   return catalog
     .filter((e) => e.pattern === pattern)
-    .filter(isPrescribable)
+    .filter((e) => isPrescribable(e))
     .filter((e) => e.equipment.some((eq) => profile.equipment.includes(eq)))
     .filter((e) => !e.contraindications.some((c) => profile.limitations.includes(c)))
     .sort((a, b) => a.difficulty - b.difficulty);
@@ -112,8 +134,10 @@ export function foldLadder(
         if (!s) continue;
         if (r.completed && r.formOk) {
           s.good += 1;
-          const cap = capIndex(rungs.get(p)!, rank);
-          if (s.good >= ADVANCE_AFTER && s.index < cap) {
+          const list = rungs.get(p)!;
+          const cap = capIndex(list, rank);
+          if (s.good >= ADVANCE_AFTER && s.index < cap
+            && worthAdvancing(list[s.index], list[s.index + 1], r.value)) {
             s.index += 1;
             s.good = 0;
           }

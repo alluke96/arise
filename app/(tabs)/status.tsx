@@ -11,6 +11,7 @@ import { levelProgress } from '../../src/core/engine';
 import { formatNumber, type TKey } from '../../src/core/i18n';
 import { exerciseById, exerciseName } from '../../src/data/exercises';
 import type { Attribute } from '../../src/core/types';
+import { TEST_BUILD } from '../../src/core/config';
 
 const ATTRS: Attribute[] = ['STR', 'AGI', 'VIT', 'PER', 'INT'];
 
@@ -37,6 +38,13 @@ export default function StatusScreen() {
         <View style={styles.header}>
           <HudLabel tone="muted" style={{ fontSize: 10 }}>{t('status.association')}</HudLabel>
           <View style={styles.headerActions}>
+            {TEST_BUILD && (
+              <Link href="/laboratorio" asChild>
+                <Pressable accessibilityRole="button" hitSlop={12}>
+                  <HudLabel tone="gold" style={{ fontSize: 10 }}>{t('lab.short')}</HudLabel>
+                </Pressable>
+              </Link>
+            )}
             <Link href="/reavaliacao" asChild>
               <Pressable accessibilityRole="button" hitSlop={12}>
                 <HudLabel tone="blue" style={{ fontSize: 10 }}>{t('status.reassess')}</HudLabel>

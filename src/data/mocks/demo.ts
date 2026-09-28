@@ -1,6 +1,7 @@
 import {
   addDays, buildQuestInput, completeQuest, eventId, generateDailyQuest, isTrainingDay, reconcile,
 } from '../../core/engine';
+import { nowMs } from '../../core/clock';
 import type { DomainEvent } from '../../core/sync/events';
 import type { DailyQuest, HealthScreening, UserProfile } from '../../core/types';
 import { EXERCISES } from '../exercises';
@@ -48,7 +49,8 @@ export interface DemoState {
   quests: DailyQuest[];
 }
 
-export function todayISO(now = new Date()): string {
+/** Data local de hoje. Passa pelo relógio do app, que no build de teste pode estar adiantado. */
+export function todayISO(now = new Date(nowMs())): string {
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 10);
 }

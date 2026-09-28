@@ -12,4 +12,5 @@ export * from './calendar';
 export * from './shadows';
 export * from './session';
 export * from './context';
+export * from './projection';
 export { INITIAL_PROGRESSION_FOR } from '../sync/fold';

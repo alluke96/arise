@@ -11,6 +11,7 @@ import { useBilling } from '../src/features/billing/store';
 import { exerciseById, exerciseCues, exerciseErrors, exerciseName, systemName } from '../src/data/exercises';
 import { PROGRAMS } from '../src/data/programs';
 import type { RpeBand } from '../src/core/types';
+import { REQUIRE_ILLUSTRATIONS } from '../src/core/config';
 
 const BANDS: { band: RpeBand; range: string; key: 'rpeLight' | 'rpeModerate' | 'rpeHard' | 'rpeMax' }[] = [
   { band: 3, range: '3–4', key: 'rpeLight' },
@@ -86,7 +87,8 @@ export default function Sessao() {
   }
 
   const unitLabel = objective.unit === 'seconds' ? t('common.seconds')
-    : objective.unit === 'minutes' ? t('common.minutes') : t('common.reps');
+    : objective.unit === 'minutes' ? t('common.minutes')
+      : objective.unit === 'meters' ? t('common.meters') : t('common.reps');
   const done = objective.actualValue >= objective.targetValue;
 
   const adjust = async (direction: 'easier' | 'harder') => {
@@ -134,9 +136,12 @@ export default function Sessao() {
         <Txt variant="title" style={styles.name} accessibilityRole="header">{exerciseName(exercise, locale)}</Txt>
 
         {/* R11.3 — o par de ilustrações é deliverable de arte. Até lá, placeholder honesto. */}
-        <View style={styles.illustration}>
-          <Txt variant="bodySm" tone="muted">{t('quest.illustrationPending')}</Txt>
-        </View>
+        {/* Build de teste: sem ilustrações, os pontos de técnica abaixo guiam a execução. */}
+        {REQUIRE_ILLUSTRATIONS && (
+          <View style={styles.illustration}>
+            <Txt variant="bodySm" tone="muted">{t('quest.illustrationPending')}</Txt>
+          </View>
+        )}
 
         <View style={styles.cues}>
           {exerciseCues(exercise, locale).map((c, i) => (

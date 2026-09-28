@@ -17,7 +17,7 @@ const session = (day: number, results: ObjectiveResult[]): DomainEvent => ({
     resistedVolume: 100, aerobicMinutes: 10, formOkRatio: 1, results,
   },
 });
-const good = (id: string): ObjectiveResult => ({ exerciseId: id, value: 10, completed: true, formOk: true });
+const good = (id: string, value = 20): ObjectiveResult => ({ exerciseId: id, value, completed: true, formOk: true });
 const bad = (id: string): ObjectiveResult => ({ exerciseId: id, value: 4, completed: false, formOk: true });
 const place = (day: number, rank: 'D' | 'C'): DomainEvent =>
   ({ id: `p${++n}`, at: at(day), deviceId: 'd', kind: 'benchmark_passed', rankAfter: rank });
@@ -31,6 +31,15 @@ describe('escada de progressão', () => {
     const l = foldLadder([session(1, [good('push_wall')]), session(3, [good('push_wall')])], EXERCISES, profile);
     expect(ADVANCE_AFTER).toBe(2);
     expect(l.push_h?.exerciseId).toBe('push_bench');
+  });
+
+  it('não sobe se o próximo degrau começaria com dose pequena demais', () => {
+    // 10 flexões na parede (dif. 1) virariam 5 no balcão (dif. 2): abaixo de 8.
+    const l = foldLadder([session(1, [good('push_wall', 10)]), session(3, [good('push_wall', 10)])], EXERCISES, profile);
+    expect(l.push_h?.exerciseId).toBe('push_wall');
+    // Com 16, o balcão começa em 8 — aí sobe.
+    const up = foldLadder([session(1, [good('push_wall', 16)]), session(3, [good('push_wall', 16)])], EXERCISES, profile);
+    expect(up.push_h?.exerciseId).toBe('push_bench');
   });
 
   it('uma sessão ruim no meio zera a contagem', () => {

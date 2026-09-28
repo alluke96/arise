@@ -6,6 +6,7 @@ import {
   type BenchmarkAttempt, type BenchmarkOutcome, type Completion, type LadderPosition,
 } from '../../core/engine';
 import { getDeviceId } from '../../core/ids';
+import { getDayOffset, nowISO, setDayOffset } from '../../core/clock';
 import { DEMO_MODE, repositories } from '../../core/repositories';
 import type { DomainEvent } from '../../core/sync/events';
 import { foldAll, INITIAL_PROGRESSION } from '../../core/sync/fold';
@@ -56,6 +57,21 @@ interface HunterState {
   setInjured(injured: boolean): Promise<void>;
   saveProfile(patch: Partial<UserProfile>): Promise<void>;
   wipe(): Promise<void>;
+  /** Build de teste: marca tudo de hoje como feito, com boa forma, e conclui. */
+  autoCompleteToday(): Promise<Completion | null>;
+  /** Build de teste: adianta o relógio do app e reabre o dia. */
+  advanceDays(days: number): Promise<void>;
+}
+
+/** Chaves do estado do app que "apagar tudo" preserva. */
+const PRESERVED_KEYS = ['device_id', 'admin_session'];
+
+/** Deslocamento do relógio do build de teste, persistido entre aberturas. */
+export const CLOCK_KEY = 'test_clock_offset_days';
+
+export async function loadClockOffset(): Promise<void> {
+  const raw = await repositories.app.getValue(CLOCK_KEY);
+  setDayOffset(raw ? Number(raw) || 0 : 0);
 }
 
 const localHour = () => new Date().getHours();
@@ -178,7 +194,7 @@ export const useHunter = create<HunterState>((set, get) => {
         ...q,
         objectives: q.objectives.map((o) =>
           o.exerciseId === exerciseId
-            ? { ...o, rpe, formOk, completedAt: new Date().toISOString() }
+            ? { ...o, rpe, formOk, completedAt: nowISO() }
             : o),
       });
     },
@@ -188,7 +204,7 @@ export const useHunter = create<HunterState>((set, get) => {
       if (!quest || !profile) return null;
       const a = adjustObjective({
         quest, exerciseId, direction, catalog: EXERCISES, profile,
-        rank: quest.rank ?? progression.rank, deviceId: getDeviceId(), at: new Date().toISOString(),
+        rank: quest.rank ?? progression.rank, deviceId: getDeviceId(), at: nowISO(),
       });
       if (!a) return null;
       await saveQuest(a.quest);
@@ -224,7 +240,7 @@ export const useHunter = create<HunterState>((set, get) => {
       const day = get().penaltyOpenFor;
       if (!day) return;
       await append([{
-        id: eventId.penaltyDone(day), at: new Date().toISOString(),
+        id: eventId.penaltyDone(day), at: nowISO(),
         deviceId: getDeviceId(), kind: 'penalty_completed',
       }]);
       set({ penaltyOpenFor: null });
@@ -235,7 +251,7 @@ export const useHunter = create<HunterState>((set, get) => {
       // Sem pedra, o botão não protege nada — nem de graça.
       if (!day || progression.recoveryStones <= 0) return false;
       await append([{
-        id: eventId.stoneUse(day), at: new Date().toISOString(),
+        id: eventId.stoneUse(day), at: nowISO(),
         deviceId: getDeviceId(), kind: 'stone_used',
       }]);
       set({ penaltyOpenFor: null });
@@ -249,7 +265,7 @@ export const useHunter = create<HunterState>((set, get) => {
       const outcome = evaluateBenchmark(progression.rank, attempt);
       if (outcome.passed) {
         await append([{
-          id: `bench:${today}`, at: new Date().toISOString(), deviceId: getDeviceId(),
+          id: `bench:${today}`, at: nowISO(), deviceId: getDeviceId(),
           kind: 'benchmark_passed', rankAfter: outcome.targetRank,
         }]);
       }
@@ -264,7 +280,7 @@ export const useHunter = create<HunterState>((set, get) => {
 
     async setInjured(injured) {
       await append([{
-        id: `injury:${injured ? 'on' : 'off'}:${Date.now()}`, at: new Date().toISOString(),
+        id: `injury:${injured ? 'on' : 'off'}:${Date.now()}`, at: nowISO(),
         deviceId: getDeviceId(), kind: injured ? 'injury_declared' : 'injury_cleared',
       }]);
     },
@@ -277,9 +293,41 @@ export const useHunter = create<HunterState>((set, get) => {
       set({ profile });
     },
 
+    async autoCompleteToday() {
+      const q = get().quest;
+      if (!q || q.status === 'completed') return null;
+      const at = nowISO();
+      await saveQuest({
+        ...q,
+        status: 'partial',
+        objectives: q.objectives.map((o) => ({
+          ...o, actualValue: o.targetValue, rpe: 5, formOk: true, completedAt: at,
+        })),
+      });
+      return get().completeToday();
+    },
+
+    async advanceDays(days) {
+      const next = getDayOffset() + Math.max(0, Math.round(days));
+      setDayOffset(next);
+      await repositories.app.setValue(CLOCK_KEY, String(next));
+      set({ lastCompletion: null, sessionStartedAt: null });
+      await get().boot();
+    },
+
     async wipe() {
+      // O id do aparelho e a sessão de login não são histórico: sobrevivem.
+      const kept = await Promise.all(PRESERVED_KEYS.map((k) => repositories.app.getValue(k)));
       await repositories.app.wipe();
+      for (const [i, k] of PRESERVED_KEYS.entries()) {
+        const v = kept[i];
+        if (v !== null && v !== undefined) await repositories.app.setValue(k, v);
+      }
+      // Recomeçar do zero também volta o relógio para hoje de verdade:
+      // eventos com data "no futuro" não sobram para confundir o calendário.
+      setDayOffset(0);
       set({
+        today: todayISO(),
         ready: true, profile: null, screening: null, startedAt: null, events: [],
         progression: INITIAL_PROGRESSION, streak: null, quest: null, ladder: {},
         shadowProgress: {}, unlockedShadows: [], penaltyOpenFor: null,

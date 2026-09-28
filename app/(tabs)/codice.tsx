@@ -8,6 +8,7 @@ import { useLocale, useT } from '../../src/features/settings/store';
 import { EXERCISES, exerciseCriteria, exerciseCues, exerciseErrors, exerciseName, exercisesByPattern, systemName } from '../../src/data/exercises';
 import { isPrescribable, rankAtLeast } from '../../src/core/engine';
 import type { Exercise, Pattern } from '../../src/core/types';
+import { REQUIRE_ILLUSTRATIONS } from '../../src/core/config';
 import type { TKey } from '../../src/core/i18n';
 
 const PATTERNS: Pattern[] = [
@@ -105,9 +106,11 @@ export default function CodiceScreen() {
           );
         })}
 
-        <Note tone="red" icon={<IconAlert />}>
-          <Txt variant="bodySm" tone="dim">{t('codex.illustrationRule')}</Txt>
-        </Note>
+        {REQUIRE_ILLUSTRATIONS && (
+          <Note tone="red" icon={<IconAlert />}>
+            <Txt variant="bodySm" tone="dim">{t('codex.illustrationRule')}</Txt>
+          </Note>
+        )}
 
         {limitations.length > 0 && (
           <Note>

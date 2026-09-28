@@ -16,7 +16,9 @@ import { color } from '../src/ui/tokens';
 import { newId, setDeviceId, setIdGenerator } from '../src/core/ids';
 import { repositories } from '../src/core/repositories';
 import { resolveLocale } from '../src/core/i18n';
-import { useHunter } from '../src/features/hunter/store';
+import { loadClockOffset, useHunter } from '../src/features/hunter/store';
+import { useAuth } from '../src/features/auth/store';
+import { TEST_BUILD } from '../src/core/config';
 import { bindProfilePersistence, useSettings } from '../src/features/settings/store';
 import { syncNotifications } from '../src/features/notifications/adapter';
 import { useBilling } from '../src/features/billing/store';
@@ -38,6 +40,10 @@ async function bootApp() {
   setDeviceId(deviceId);
 
   bindProfilePersistence((patch) => { void useHunter.getState().saveProfile(patch); });
+  if (TEST_BUILD) {
+    await useAuth.getState().hydrate();
+    await loadClockOffset();
+  }
   await useHunter.getState().boot();
   const { profile, quest } = useHunter.getState();
   const systemLocale = resolveLocale(getLocales().map((l) => l.languageTag));

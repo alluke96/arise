@@ -6,6 +6,7 @@ import type {
 } from '../types';
 import { eventId } from './calendar';
 import { neighborRung } from './ladder';
+import { loadFactor } from './scaling';
 import {
   computeStats, evaluateShadows, shadowUnlockEvent, unlockedFromEvents,
   type ShadowRule, type StatsContext,
@@ -174,7 +175,8 @@ export function adjustObjective(input: {
     objectives: input.quest.objectives.map((o) => {
       if (o.exerciseId !== input.exerciseId) return o;
       // floor, não round: arredondar para cima furaria a carga por uma repetição.
-      const loadPreserving = Math.floor((o.targetValue * from.difficulty) / to.difficulty);
+      const loadPreserving = Math.floor(
+        (o.targetValue * loadFactor(from.unit, from.difficulty)) / loadFactor(to.unit, to.difficulty));
       const targetValue = to.unit === from.unit
         ? Math.max(1, Math.min(o.targetValue, loadPreserving))
         : o.targetValue;

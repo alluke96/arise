@@ -1,5 +1,5 @@
 import type { Pattern, Rank, SessionSummary, Unit } from '../types';
-import { MAX_WEEKLY_INCREASE, clampWeeklyVolume, enforceDeload } from './guards';
+import { MAX_WEEKLY_INCREASE, enforceDeload } from './guards';
 import { REENTRY_VOLUME_FACTOR } from './penalty';
 
 /**
@@ -73,7 +73,46 @@ export function recalibrationFactor(consecutiveFailures: number): number {
 export interface WeeklyReference {
   load: number;
   unit: Unit;
+  /**
+   * `false` quando a referência vem da PRÓPRIA semana (ainda não existe semana
+   * anterior, ex.: primeira semana de uso). Aí o alvo pode repetir a carga,
+   * nunca subir — senão a segunda semana começaria sem teto nenhum.
+   */
+  growth?: boolean;
 }
+
+/**
+ * Quanto uma unidade de alvo "pesa" num degrau.
+ *
+ * Repetições, segundos e metros escalam com a dificuldade: 9 flexões na parede
+ * não equivalem a 9 no sofá. Minutos de aeróbico não: trocar a marcha parada
+ * pela caminhada muda a intensidade, e dividir o tempo pela dificuldade daria
+ * "caminhe 4 minutos" para quem já marchava 9.
+ */
+export function loadFactor(unit: Unit, difficulty: number): number {
+  return unit === 'minutes' ? 1 : Math.max(difficulty, 1);
+}
+
+/**
+ * Alvo máximo da semana, em unidades do degrau atual.
+ *
+ * +10% de carga, ou +1 unidade quando 10% não chega a uma unidade inteira:
+ * com números pequenos o arredondamento para baixo congelava o alvo — 9
+ * minutos viravam 9,9 → 9 para sempre, e 6 flexões no sofá nunca viravam 7.
+ */
+export function weeklyCeiling(ref: WeeklyReference, unit: Unit, difficulty: number): number {
+  const f = loadFactor(unit, difficulty);
+  const same = Math.floor(ref.load / f);
+  if (ref.growth === false) return same;
+  return Math.max(Math.floor((ref.load * (1 + MAX_WEEKLY_INCREASE)) / f), same + MIN_WEEKLY_STEP[unit]);
+}
+
+/**
+ * Menor passo semanal por unidade, quando 10% não chega a isso. Sustentação
+ * sobe de 2 em 2 segundos: de 1 em 1, uma prancha de 13 s levaria quatro
+ * meses para chegar a 30 s.
+ */
+export const MIN_WEEKLY_STEP: Record<Unit, number> = { reps: 1, seconds: 2, minutes: 1, meters: 5 };
 
 export interface ScalingContext {
   rank: Rank;
@@ -114,9 +153,19 @@ export function scaleObjective(ctx: ScalingContext): number {
 
   if (ctx.lastWeek && ctx.lastWeek.load > 0) {
     if (ctx.lastWeek.unit === ctx.unit) {
-      const difficulty = Math.max(ctx.difficulty, 1);
-      target = clampWeeklyVolume(target * difficulty, ctx.lastWeek.load) / difficulty;
-      ceiling = Math.floor((ctx.lastWeek.load * (1 + MAX_WEEKLY_INCREASE)) / difficulty);
+      ceiling = weeklyCeiling(ctx.lastWeek, ctx.unit, ctx.difficulty);
+      // Sobrecarga progressiva: quem vem cumprindo (fator de progressão > 1)
+      // constrói sobre a semana passada e vai ao teto. Partir sempre da base
+      // do rank fazia o alvo crescer ~3%/semana — 9 flexões viravam 14 em
+      // três meses. Falha, reentrada e dia ruim continuam reduzindo.
+      const earned = ctx.progression > 1;
+      const proposal = earned
+        ? ceiling
+          * ctx.recalibration
+          * (ctx.reentry ? REENTRY_VOLUME_FACTOR : 1)
+          * Math.min(1, ctx.readiness / 0.9)
+        : grown;
+      target = Math.min(enforceDeload(proposal, ctx.weekIndex), ceiling);
     } else {
       // Unidade mudou (ex.: prancha em segundos → dead bug em repetições): não
       // há comparação justa. Nunca passa da base do rank, sem crescimento.
