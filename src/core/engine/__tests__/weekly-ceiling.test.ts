@@ -79,9 +79,25 @@ describe('teto semanal no caminho real', () => {
   });
 
   it('quem vem cumprindo vai ao teto; quem não vem, fica na base', () => {
-    const lastWeek = { load: 20, unit: 'reps' as const };
-    expect(scaleObjective(ctx({ rank: 'E', difficulty: 1, progression: 1.05, readiness: 1, lastWeek }))).toBe(22);
-    expect(scaleObjective(ctx({ rank: 'E', difficulty: 1, progression: 1, readiness: 1, lastWeek }))).toBe(10);
+    const lastWeek = { load: 12, unit: 'reps' as const };
+    expect(scaleObjective(ctx({ rank: 'E', difficulty: 1, progression: 1.05, readiness: 1, lastWeek }))).toBe(13);
+    expect(scaleObjective(ctx({ rank: 'E', difficulty: 1, progression: 1, readiness: 1, lastWeek }))).toBe(8);
+  });
+
+  it('dentro do rank o alvo para em 2,5× a base: dali em diante é Reavaliação', () => {
+    const t = scaleObjective(ctx({
+      rank: 'E', pattern: 'push_h', difficulty: 1, progression: 1.2, readiness: 1,
+      lastWeek: { load: 200, unit: 'reps' },
+    }));
+    expect(t).toBe(20);
+  });
+
+  it('o aeróbico nunca passa da metade do tempo de sessão escolhido', () => {
+    const t = scaleObjective(ctx({
+      rank: 'B', pattern: 'aerobic', unit: 'minutes', difficulty: 5, progression: 1.2, readiness: 1,
+      sessionMinutes: 20,
+    }));
+    expect(t).toBe(10);
   });
 
   it('minutos de aeróbico não se dividem pela dificuldade do degrau', () => {
@@ -101,12 +117,12 @@ describe('teto semanal no caminho real', () => {
       pattern: 'core_anti_ext', unit: 'reps', difficulty: 3, rank: 'D',
       progression: 1.5, readiness: 1.1, lastWeek: { load: 30 * 2, unit: 'seconds' },
     }));
-    expect(t).toBeLessThanOrEqual(16); // base de repetições de core no Rank D
+    expect(t).toBeLessThanOrEqual(10); // base de repetições de core no Rank D
   });
 
   it('sem histórico, o alvo é a base do rank ajustada', () => {
     const t = scaleObjective(ctx({ rank: 'E', pattern: 'push_h', readiness: 1, progression: 1 }));
-    expect(t).toBe(10);
+    expect(t).toBe(8);
   });
 
   it('reentrada pós-Dungeon Break corta pela metade', () => {
@@ -118,8 +134,8 @@ describe('teto semanal no caminho real', () => {
   it('prancha usa segundos e dead bug usa repetições — tabelas diferentes', () => {
     const plank = scaleObjective(ctx({ rank: 'C', pattern: 'core_anti_ext', unit: 'seconds', readiness: 1, progression: 1 }));
     const bug = scaleObjective(ctx({ rank: 'C', pattern: 'core_anti_ext', unit: 'reps', readiness: 1, progression: 1 }));
-    expect(plank).toBe(45);
-    expect(bug).toBe(20);
+    expect(plank).toBe(30);
+    expect(bug).toBe(14);
   });
 });
 

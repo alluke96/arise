@@ -5,7 +5,7 @@ import {
 } from '../../src/ui';
 import { useHunter } from '../../src/features/hunter/store';
 import { useLocale, useSystemText, useT } from '../../src/features/settings/store';
-import { useCountdown } from '../../src/features/common/useCountdown';
+import { Countdown } from '../../src/features/common/Countdown';
 import { useBilling } from '../../src/features/billing/store';
 import { exerciseById, exerciseName, systemName } from '../../src/data/exercises';
 
@@ -17,7 +17,6 @@ export default function MissaoScreen() {
   const sys = useSystemText();
   const locale = useLocale();
   const { quest, completeToday } = useHunter();
-  const left = useCountdown(quest?.deadline);
   // R13.5 — sem direito de acesso, a missão fica visível mas não inicia.
   const canTrain = useBilling((s) => s.entitlement?.canTrain ?? true);
   const openSession = (id: string) => {
@@ -73,7 +72,7 @@ export default function MissaoScreen() {
                   <IconClock />
                   <Txt variant="bodySm" tone="dim" style={{ fontSize: 13 }}>{t('quest.deadline')}</Txt>
                 </View>
-                <Txt variant="stat" tone="red" style={{ fontSize: 19 }}>{left.hours}h {left.minutes}min</Txt>
+                <Countdown deadline={quest.deadline} style={{ fontSize: 19 }} />
               </View>
             )}
             {quest.isDeload && <Txt variant="bodySm" tone="blue">{sys('deloadWeek')}</Txt>}

@@ -10,18 +10,28 @@ import { REENTRY_VOLUME_FACTOR } from './penalty';
  * repetições para outro do mesmo padrão. A unidade agora decide a tabela.
  */
 const REPS: Record<Rank, Partial<Record<Pattern, number>>> = {
-  E: { push_h: 10, push_v: 10, pull_h: 8, pull_v: 10, squat: 15, hinge: 12, unilateral: 8, core_anti_ext: 8, core_anti_rot: 8, trunk_flex: 12 },
-  D: { push_h: 24, push_v: 16, pull_h: 12, pull_v: 12, squat: 30, hinge: 20, unilateral: 12, core_anti_ext: 16, core_anti_rot: 12, trunk_flex: 20 },
-  C: { push_h: 30, push_v: 20, pull_h: 18, pull_v: 12, squat: 45, hinge: 30, unilateral: 16, core_anti_ext: 20, core_anti_rot: 16, trunk_flex: 30 },
-  B: { push_h: 45, push_v: 24, pull_h: 24, pull_v: 15, squat: 60, hinge: 36, unilateral: 20, core_anti_ext: 24, core_anti_rot: 20, trunk_flex: 36 },
-  A: { push_h: 70, push_v: 30, pull_h: 30, pull_v: 24, squat: 80, hinge: 40, unilateral: 24, core_anti_ext: 30, core_anti_rot: 24, trunk_flex: 50 },
+  E: { push_h: 8, push_v: 8, pull_h: 8, pull_v: 8, squat: 10, hinge: 10, unilateral: 6, core_anti_ext: 8, core_anti_rot: 8, trunk_flex: 10 },
+  D: { push_h: 14, push_v: 10, pull_h: 10, pull_v: 8, squat: 18, hinge: 14, unilateral: 8, core_anti_ext: 10, core_anti_rot: 10, trunk_flex: 14 },
+  C: { push_h: 20, push_v: 14, pull_h: 14, pull_v: 10, squat: 26, hinge: 20, unilateral: 12, core_anti_ext: 14, core_anti_rot: 12, trunk_flex: 20 },
+  B: { push_h: 30, push_v: 18, pull_h: 18, pull_v: 12, squat: 36, hinge: 26, unilateral: 16, core_anti_ext: 18, core_anti_rot: 16, trunk_flex: 26 },
+  A: { push_h: 45, push_v: 24, pull_h: 24, pull_v: 16, squat: 50, hinge: 32, unilateral: 20, core_anti_ext: 24, core_anti_rot: 20, trunk_flex: 36 },
   S: { push_h: 100, push_v: 40, pull_h: 40, pull_v: 30, squat: 100, hinge: 50, unilateral: 30, core_anti_ext: 40, core_anti_rot: 30, trunk_flex: 100 },
 };
-/** Sustentações. Espelham o critério de core de cada rank (§6.2). */
-const HOLD_SECONDS: Record<Rank, number> = { E: 15, D: 30, C: 45, B: 60, A: 90, S: 120 };
-const AEROBIC_MINUTES: Record<Rank, number> = { E: 10, D: 25, C: 30, B: 40, A: 45, S: 60 };
-const AEROBIC_REPS: Record<Rank, number> = { E: 20, D: 40, C: 60, B: 80, A: 100, S: 120 };
-const CARRY_METERS: Record<Rank, number> = { E: 40, D: 60, C: 80, B: 100, A: 120, S: 150 };
+/**
+ * Sustentações. Mais baixas que o critério de core de cada rank de propósito:
+ * a missão diária treina, a Reavaliação testa o máximo.
+ */
+const HOLD_SECONDS: Record<Rank, number> = { E: 12, D: 20, C: 30, B: 45, A: 60, S: 120 };
+const AEROBIC_MINUTES: Record<Rank, number> = { E: 8, D: 15, C: 20, B: 30, A: 40, S: 60 };
+const AEROBIC_REPS: Record<Rank, number> = { E: 16, D: 24, C: 36, B: 50, A: 70, S: 120 };
+const CARRY_METERS: Record<Rank, number> = { E: 30, D: 40, C: 60, B: 80, A: 100, S: 150 };
+
+/**
+ * Teto dentro de um rank: 2,5× a base (espaço para a escada andar até o topo do rank). Chegando aqui, o próximo passo é
+ * a Reavaliação — sem isso a sobrecarga semanal seguia empilhando repetições
+ * no mesmo rank indefinidamente.
+ */
+export const RANK_CAP_FACTOR = 2.5;
 
 export function baseTarget(rank: Rank, pattern: Pattern, unit: Unit = 'reps'): number {
   switch (unit) {
@@ -129,6 +139,8 @@ export interface ScalingContext {
   lastWeek?: WeeklyReference;
   /** R9.2 — reentrada pós-Dungeon Break: metade do volume. */
   reentry?: boolean;
+  /** Minutos por sessão escolhidos no onboarding. O aeróbico ocupa no máximo metade. */
+  sessionMinutes?: number;
 }
 
 /**
@@ -173,9 +185,18 @@ export function scaleObjective(ctx: ScalingContext): number {
     }
   }
 
+  target = Math.min(target, rankCap(ctx));
+
   // Arredondar para cima poderia furar o teto por meia repetição.
   const rounded = Math.min(Math.round(target), ceiling);
   return Math.max(1, rounded);
+}
+
+/** Maior alvo que o rank permite, e o aeróbico cabendo na metade da sessão. */
+export function rankCap(ctx: Pick<ScalingContext, 'rank' | 'pattern' | 'unit' | 'sessionMinutes'>): number {
+  const cap = baseTarget(ctx.rank, ctx.pattern, ctx.unit) * RANK_CAP_FACTOR;
+  if (ctx.unit === 'minutes' && ctx.sessionMinutes) return Math.min(cap, Math.max(5, Math.floor(ctx.sessionMinutes / 2)));
+  return cap;
 }
 
 function clamp(n: number, lo: number, hi: number): number {

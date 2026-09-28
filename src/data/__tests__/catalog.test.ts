@@ -85,6 +85,15 @@ describe('catalogo de exercicios', () => {
     }
   });
 
+  it('exercicio sem equipamento nao pede objeto que a pessoa nao marcou', () => {
+    // Parede, chao, cadeira, sofa, mesa e degrau de escada existem em qualquer casa.
+    const OBJECTS = /\b(bola|bast[aã]o|caixa|halter|elástico|barra|banco|anilha|kettlebell|corda|toalha)\b/i;
+    for (const e of EXERCISES) {
+      if (!e.equipment.includes('none')) continue;
+      for (const text of [e.namePt, ...e.cues]) expect(OBJECTS.test(text), `${e.id}: ${text}`).toBe(false);
+    }
+  });
+
   it('cada padrao tem a quantidade prevista no spec', () => {
     const counts: Record<string, number> = {
       push_h: 9, push_v: 5, pull_h: 7, pull_v: 5, squat: 9, hinge: 7,

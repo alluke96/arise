@@ -4,7 +4,7 @@ import { Choice, HudLabel, RankBadge, Screen, SystemButton, SystemWindow, Txt, s
 import { Steps } from '../../src/features/onboarding/Steps';
 import { useOnboarding } from '../../src/features/onboarding/store';
 import { useT } from '../../src/features/settings/store';
-import { initialRank, type BaselineAnswers } from '../../src/core/engine';
+import { STARTING_RANK, suggestedRank, type BaselineAnswers } from '../../src/core/engine';
 import type { TKey } from '../../src/core/i18n';
 
 /**
@@ -22,7 +22,8 @@ export default function Baseline() {
   const router = useRouter();
   const t = useT();
   const { baseline, setBaseline } = useOnboarding();
-  const rank = initialRank(baseline);
+  // Todos começam no E; o autorrelato só decide se vale reavaliar já.
+  const hasBase = suggestedRank(baseline) !== STARTING_RANK;
 
   return (
     <Screen>
@@ -47,10 +48,12 @@ export default function Baseline() {
 
         <SystemWindow padding={16}>
           <View style={styles.result}>
-            <RankBadge rank={rank} size="sm" />
+            <RankBadge rank={STARTING_RANK} size="sm" />
             <View style={{ flex: 1 }}>
               <HudLabel tone="blue">{t('onboarding.provisionalRank')}</HudLabel>
-              <Txt variant="bodySm" tone="dim" style={{ marginTop: 4 }}>{t('onboarding.baselineNote')}</Txt>
+              <Txt variant="bodySm" tone="dim" style={{ marginTop: 4 }}>
+                {t(hasBase ? 'onboarding.baselineHasBase' : 'onboarding.baselineNote')}
+              </Txt>
             </View>
           </View>
         </SystemWindow>

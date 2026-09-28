@@ -104,6 +104,7 @@ export function generateDailyQuest(input: QuestInput): DailyQuest {
       weekIndex: input.weekIndex,
       lastWeek: input.lastWeek[pattern],
       reentry: input.reentry,
+      sessionMinutes: profile.sessionMinutes,
     });
 
     objectives.push({

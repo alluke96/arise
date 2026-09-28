@@ -84,9 +84,18 @@ export interface BaselineAnswers {
   detraining: 0 | 1 | 2 | 3 | 4;
 }
 
-/** R3.3 — Rank inicial entre E e C. Nunca mais que C no onboarding:
- *  autorrelato não é benchmark. */
-export function initialRank(a: BaselineAnswers): Rank {
+/**
+ * TODO mundo começa no Rank E — inclusive quem já treina. O rank é conquistado
+ * pela Reavaliação, nunca dado por autorrelato. Quem tem base sobe rápido:
+ * a primeira Reavaliação fica liberada já no primeiro dia.
+ */
+export const STARTING_RANK: Rank = 'E';
+
+/**
+ * Rank que o autorrelato do Exame de Aptidão SUGERE (entre E e C). Não
+ * posiciona ninguém: só decide se o app recomenda fazer a Reavaliação logo.
+ */
+export function suggestedRank(a: BaselineAnswers): Rank {
   const score = a.stairs + a.pushups + a.walk20 + a.detraining;
   if (score <= 3) return 'E';
   if (score <= 8) return 'D';

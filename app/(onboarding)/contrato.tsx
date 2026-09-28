@@ -9,7 +9,7 @@ import { useHunter } from '../../src/features/hunter/store';
 import { useLocale, useT } from '../../src/features/settings/store';
 import { requestNotificationPermission, syncNotifications } from '../../src/features/notifications/adapter';
 import {
-  addDays, evaluateParq, generateDailyQuest, initialRank, weeksToRankS, INITIAL_PROGRESSION_FOR,
+  addDays, evaluateParq, generateDailyQuest, STARTING_RANK, weeksToRankS, INITIAL_PROGRESSION_FOR,
 } from '../../src/core/engine';
 import { EXERCISES, exerciseById, exerciseName } from '../../src/data/exercises';
 import type { TKey } from '../../src/core/i18n';
@@ -23,12 +23,12 @@ export default function Contrato() {
   const router = useRouter();
   const t = useT();
   const locale = useLocale();
-  const { draft, parq, baseline, commit } = useOnboarding();
+  const { draft, parq, commit } = useOnboarding();
   const boot = useHunter((s) => s.boot);
   const today = useHunter((s) => s.today);
   const [saving, setSaving] = useState(false);
 
-  const rank = initialRank(baseline);
+  const rank = STARTING_RANK;
   const screening = evaluateParq({ answers: parq, limitations: draft.limitations, date: today });
 
   // A missão mostrada aqui é a que o motor gera de verdade para estas respostas.

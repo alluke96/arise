@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { evaluateParq, initialRank, type BaselineAnswers, type ParqKey } from '../../core/engine';
+import { STARTING_RANK, evaluateParq, type BaselineAnswers, type ParqKey } from '../../core/engine';
 import { getDeviceId } from '../../core/ids';
 import { repositories } from '../../core/repositories';
 import type { Equipment, Limitation, UserProfile } from '../../core/types';
@@ -68,13 +68,13 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
    * e a data de início da jornada.
    */
   async commit() {
-    const { draft, parq, baseline } = get();
+    const { draft, parq } = get();
     const today = todayISO();
     await repositories.profile.save({ ...draft, hunterName: draft.hunterName.trim().toUpperCase() || 'CAÇADOR' });
     await repositories.screening.save(evaluateParq({ answers: parq, limitations: draft.limitations, date: today }));
     await repositories.events.append({
       id: 'placement', at: `${today}T12:00:00.000Z`, deviceId: getDeviceId(),
-      kind: 'benchmark_passed', rankAfter: initialRank(baseline),
+      kind: 'benchmark_passed', rankAfter: STARTING_RANK,
     });
     await repositories.profile.completeOnboarding(today);
   },

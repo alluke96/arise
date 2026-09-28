@@ -6,7 +6,7 @@ import {
 } from '../../src/ui';
 import { useHunter } from '../../src/features/hunter/store';
 import { useLocale, useSystemText, useT } from '../../src/features/settings/store';
-import { useCountdown } from '../../src/features/common/useCountdown';
+import { Countdown } from '../../src/features/common/Countdown';
 import { levelProgress } from '../../src/core/engine';
 import { formatNumber, type TKey } from '../../src/core/i18n';
 import { exerciseById, exerciseName } from '../../src/data/exercises';
@@ -14,6 +14,18 @@ import type { Attribute } from '../../src/core/types';
 import { TEST_BUILD } from '../../src/core/config';
 
 const ATTRS: Attribute[] = ['STR', 'AGI', 'VIT', 'PER', 'INT'];
+
+function HeaderAction({ href, label, tone }: {
+  href: '/laboratorio' | '/reavaliacao' | '/ajustes'; label: string; tone: 'gold' | 'blue' | 'muted';
+}) {
+  return (
+    <Link href={href} asChild>
+      <Pressable accessibilityRole="button" accessibilityLabel={label} style={styles.headerAction}>
+        <HudLabel tone={tone} style={{ fontSize: 10.5 }} numberOfLines={1}>{label}</HudLabel>
+      </Pressable>
+    </Link>
+  );
+}
 
 export default function StatusScreen() {
   const router = useRouter();
@@ -25,7 +37,6 @@ export default function StatusScreen() {
   // Derivado no render, NÃO num selector: `levelProgress` monta objeto novo a
   // cada chamada, e o Zustand v5 compara snapshot por referência.
   const xp = levelProgress(progression);
-  const left = useCountdown(quest?.deadline);
 
   if (!profile) return <Screen><View /></Screen>;
 
@@ -35,26 +46,14 @@ export default function StatusScreen() {
   return (
     <Screen edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Título numa linha, ações numa linha própria que quebra se faltar
+            espaço: lado a lado, os quatro rótulos vazavam da tela. */}
         <View style={styles.header}>
-          <HudLabel tone="muted" style={{ fontSize: 10 }}>{t('status.association')}</HudLabel>
+          <HudLabel tone="muted" style={{ fontSize: 10 }} numberOfLines={1}>{t('status.association')}</HudLabel>
           <View style={styles.headerActions}>
-            {TEST_BUILD && (
-              <Link href="/laboratorio" asChild>
-                <Pressable accessibilityRole="button" hitSlop={12}>
-                  <HudLabel tone="gold" style={{ fontSize: 10 }}>{t('lab.short')}</HudLabel>
-                </Pressable>
-              </Link>
-            )}
-            <Link href="/reavaliacao" asChild>
-              <Pressable accessibilityRole="button" hitSlop={12}>
-                <HudLabel tone="blue" style={{ fontSize: 10 }}>{t('status.reassess')}</HudLabel>
-              </Pressable>
-            </Link>
-            <Link href="/ajustes" asChild>
-              <Pressable accessibilityRole="button" hitSlop={12}>
-                <HudLabel tone="muted" style={{ fontSize: 10 }}>{t('settings.title')}</HudLabel>
-              </Pressable>
-            </Link>
+            {TEST_BUILD && <HeaderAction href="/laboratorio" label={t('lab.short')} tone="gold" />}
+            <HeaderAction href="/reavaliacao" label={t('status.reassess')} tone="blue" />
+            <HeaderAction href="/ajustes" label={t('status.settings')} tone="muted" />
           </View>
         </View>
 
@@ -156,9 +155,7 @@ export default function StatusScreen() {
                 {!done && !quest.isRestDay && (
                   <View style={styles.deadline}>
                     <IconClock />
-                    <Txt variant="bodyStrong" tone="red" style={{ fontSize: 13 }}>
-                      {left.hours}h {left.minutes}min
-                    </Txt>
+                    <Countdown deadline={quest.deadline} style={{ fontSize: 13 }} />
                   </View>
                 )}
               </View>
@@ -209,8 +206,12 @@ export default function StatusScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: space.lg, paddingBottom: 40, gap: space.lg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerActions: { flexDirection: 'row', gap: 16 },
+  header: { gap: 10 },
+  headerActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  headerAction: {
+    minHeight: 36, paddingHorizontal: 14, justifyContent: 'center',
+    backgroundColor: color.purpleDim, borderWidth: 1, borderColor: color.purpleBorder,
+  },
   inlineAction: { marginTop: 8, minHeight: 32, justifyContent: 'center' },
   hunterRow: { flexDirection: 'row', alignItems: 'center', gap: 13 },
   hunterInfo: { flex: 1 },

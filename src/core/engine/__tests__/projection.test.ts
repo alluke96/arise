@@ -29,11 +29,11 @@ const project = (count: number, events: DomainEvent[] = [placement]) => projectT
 
 const patternOf = (id: string) => exerciseById(id)!.pattern;
 
-describe('projeção dos próximos treinos (12 semanas de um sedentário)', () => {
-  const plan = project(36);
+describe('projeção dos próximos treinos (16 semanas de um sedentário)', () => {
+  const plan = project(48);
 
   it('gera exatamente os dias de treino pedidos, sem dia de descanso', () => {
-    expect(plan).toHaveLength(36);
+    expect(plan).toHaveLength(48);
     expect(plan.every((q) => !q.isRestDay && q.objectives.length > 0)).toBe(true);
   });
 
@@ -60,6 +60,13 @@ describe('projeção dos próximos treinos (12 semanas de um sedentário)', () =
         expect(ex.difficulty, `${q.date} ${ex.id}`).toBeGreaterThanOrEqual(prev);
         last.set(ex.pattern, ex.difficulty);
       }
+    }
+  });
+
+  it('o primeiro dia é leve para um sedentário', () => {
+    for (const o of plan[0].objectives) {
+      const limit = { reps: 10, seconds: 15, minutes: 10, meters: 30 }[o.unit];
+      expect(o.targetValue, o.exerciseId).toBeLessThanOrEqual(limit);
     }
   });
 
