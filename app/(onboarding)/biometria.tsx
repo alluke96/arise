@@ -100,5 +100,6 @@ const styles = StyleSheet.create({
     height: 52, paddingHorizontal: 14, justifyContent: 'center',
     backgroundColor: color.surfaceRaised, borderWidth: 1, borderColor: color.purpleBorder,
   },
-  inputText: { color: color.text, fontSize: 20, fontFamily: font.displayMedium, letterSpacing: 2 },
+  // 18 px: com 20 px e espaçamento 2 o texto de exemplo cortava em telas de 375 pt (iPhone 11 Pro).
+  inputText: { color: color.text, fontSize: 18, fontFamily: font.displayMedium, letterSpacing: 1.5 },
 });

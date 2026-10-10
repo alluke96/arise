@@ -66,7 +66,10 @@ export function SystemButton({
         </Svg>
       )}
       <View style={styles.row}>
-        <Txt variant="hudLabel" tone={FG[variant]} style={styles.label}>{label}</Txt>
+        {/* Uma linha só, encolhendo se precisar: quebrar dentro de um botão de
+            altura fixa deixava o texto espremido e torto. */}
+        <Txt variant="hudLabel" tone={FG[variant]} style={styles.label}
+          numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{label}</Txt>
         {icon}
       </View>
     </Pressable>
@@ -74,6 +77,8 @@ export function SystemButton({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  label: { fontSize: 14, letterSpacing: 2.6 },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 18 },
+  // O iOS põe o espaçamento também DEPOIS da última letra; o recuo igual à
+  // esquerda recentraliza o texto.
+  label: { fontSize: 14, letterSpacing: 2.6, paddingLeft: 2.6, flexShrink: 1, textAlign: 'center' },
 });

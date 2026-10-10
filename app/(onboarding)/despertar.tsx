@@ -66,7 +66,7 @@ export default function Despertar() {
         <View style={styles.actions}>
           <SystemButton label={t('common.accept')} icon={<IconArrow />}
             onPress={() => router.push('/(onboarding)/biometria')} />
-          <SystemButton label={restoring ? '…' : t('onboarding.restoreBackup')} variant="ghost" height={46}
+          <SystemButton label={restoring ? '…' : t('onboarding.restoreBackup')} variant="ghost" height={52}
             disabled={restoring} onPress={restore} />
           <Txt variant="bodySm" tone="muted" style={styles.legal}>{t('onboarding.medicalDisclaimer')}</Txt>
         </View>

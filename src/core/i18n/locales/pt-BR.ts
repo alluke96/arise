@@ -65,7 +65,7 @@ export const ptBR = {
     equipment: 'Equipamento disponível',
     equipmentNote: 'Nada marcado? Sem problema — o Rank E inteiro funciona só com o peso do corpo.',
     hunterName: 'Nome de caçador',
-    hunterNamePlaceholder: 'Como o Sistema deve te chamar',
+    hunterNamePlaceholder: 'Seu nome ou apelido',
     canonicalLocked: 'A missão canônica (100/100/100/10 km) só aparece no Rank S. Antes disso ela machucaria.',
     goalPush: 'flexões',
     goalSitups: 'abdominais',
@@ -81,7 +81,7 @@ export const ptBR = {
     youArePlayer: 'você é o Jogador',
     onlyOneLevels: '— o único que sobe de nível.',
     medicalDisclaimer: 'Este app não substitui avaliação médica.\nA triagem de saúde é obrigatória antes do primeiro treino.',
-    restoreBackup: 'Já tenho um backup — restaurar',
+    restoreBackup: 'Restaurar backup',
     restoreNoProfile: 'Esse arquivo não tem perfil de caçador. Faça o onboarding e importe depois, em Ajustes.',
 
     registryTitle: 'Registro na\nAssociação',

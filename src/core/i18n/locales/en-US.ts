@@ -66,7 +66,7 @@ export const enUS: Translations = {
     equipment: 'Available equipment',
     equipmentNote: 'Nothing checked? No problem — all of Rank E works with bodyweight only.',
     hunterName: 'Hunter name',
-    hunterNamePlaceholder: 'What the System should call you',
+    hunterNamePlaceholder: 'Your name or nickname',
     canonicalLocked: 'The canonical quest (100/100/100/10 km) only appears at Rank S. Before that it would hurt you.',
     goalPush: 'push-ups',
     goalSitups: 'sit-ups',
@@ -82,7 +82,7 @@ export const enUS: Translations = {
     youArePlayer: 'you are the Player',
     onlyOneLevels: '— the only one who levels up.',
     medicalDisclaimer: 'This app does not replace medical advice.\nHealth screening is required before your first workout.',
-    restoreBackup: 'I have a backup — restore it',
+    restoreBackup: 'Restore backup',
     restoreNoProfile: 'This file has no hunter profile. Do the onboarding and import it later from Settings.',
 
     registryTitle: 'Hunter\nRegistration',

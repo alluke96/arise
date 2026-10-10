@@ -103,7 +103,7 @@ No iPhone: instale o **Expo Go** (App Store), abra a **Câmera**, aponte para o
 QR code do terminal e toque no aviso. Login: `admin` / `admin`.
 
 - Os dados ficam dentro do Expo Go, separados do app da Tela de Início. Para
-  levar de um para o outro: Ajustes → Exportar, e "Já tenho um backup" no outro.
+  levar de um para o outro: Ajustes → Exportar, e "Restaurar backup" na primeira tela do outro.
 - O Expo Go da App Store precisa ser do SDK 57. Se ele atualizar para um SDK
   mais novo e o projeto parar de abrir, me avise que eu atualizo o projeto.
 
@@ -119,8 +119,8 @@ QR code do terminal e toque no aviso. Login: `admin` / `admin`.
   conta para o dia em que começou.
 - **Backup toda semana**: Ajustes → Exportar meus dados → salve o arquivo no
   Drive ou mande por e-mail para você. O app lembra depois de 7 dias.
-- **Celular novo / reinstalou**: na primeira tela, "Já tenho um backup —
-  restaurar". Volta tudo: rank, nível, sombras, histórico e a data de início.
+- **Celular novo / reinstalou**: na primeira tela, "Restaurar backup".
+  Volta tudo: rank, nível, sombras, histórico e a data de início.
 - **Cuidado no Lab**: "Cumprir hoje automaticamente" e "Avançar dia" mexem no
   seu histórico real e não têm volta. Os dois pedem confirmação.
 
