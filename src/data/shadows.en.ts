@@ -7,7 +7,7 @@ export const SHADOWS_EN: Record<string, { condition: string; perk: string }> = {
   sentinela: { condition: 'First quest completed', perk: 'Unlocks notification customization' },
   batedor: { condition: '7-day streak', perk: '+10% XP for 7 days' },
   sabujo: { condition: '10,000 steps in one day', perk: 'Step widget on the Status screen' },
-  arauto: { condition: 'Read 3 Codex articles', perk: 'Unlocks advanced explanations' },
+  arauto: { condition: 'Study 3 exercises in the Codex', perk: 'Unlocks advanced explanations' },
   lanceiro: { condition: 'Complete 10 sessions', perk: 'Unlocks the history chart' },
   vigia_noturno: { condition: 'Train after 9 pm 5 times', perk: 'Reduced-contrast theme for night training' },
   madrugador: { condition: 'Train before 7 am 5 times', perk: 'Morning reminder with the quest already open' },

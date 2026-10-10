@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AppState, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
@@ -34,7 +34,10 @@ export default function Sessao() {
   const [formOk, setFormOk] = useState(true);
   const [jointPain, setJointPain] = useState(false);
   const [running, setRunning] = useState(false);
-  const [restLeft, setRestLeft] = useState(0);
+  // Descanso também pelo relógio de parede: bloquear o celular no descanso é o normal.
+  const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const restLeft = restEndsAt ? Math.max(0, Math.ceil((restEndsAt - nowTick) / 1000)) : 0;
   const [notice, setNotice] = useState<string | null>(null);
   const lastSetRef = useRef(0);
 
@@ -45,6 +48,16 @@ export default function Sessao() {
     h.startSession();
   }, [canTrain]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Enquanto esta tela está aberta, a virada de dia espera: treinar às 23:58
+  // não pode ter a missão trocada no meio. Ao fechar, confere se o dia virou.
+  useEffect(() => {
+    useHunter.getState().setSessionActive(true);
+    return () => {
+      useHunter.getState().setSessionActive(false);
+      void useHunter.getState().refreshDay();
+    };
+  }, []);
+
   const program = PROGRAMS[quest?.rank ?? 'E'];
   const sets = program.sets;
   const setSize = objective ? Math.max(1, Math.ceil(objective.targetValue / sets)) : 1;
@@ -52,17 +65,49 @@ export default function Sessao() {
   const timed = objective?.unit === 'seconds' || objective?.unit === 'minutes';
 
   // Cronômetro para exercícios por tempo: tocar na tela 45 vezes numa prancha
-  // não faz sentido. Minutos contam em segundos e arredondam para baixo.
-  const secondsRef = useRef(0);
+  // não faz sentido. Conta pelo RELÓGIO DE PAREDE, não somando ticks: com a
+  // tela bloqueada no meio de uma caminhada o JavaScript para, e somar ticks
+  // perdia esses minutos. Retomar continua do que já estava gravado.
+  const baseSecondsRef = useRef(0);
+  const runStartRef = useRef<number | null>(null);
+  const [liveSeconds, setLiveSeconds] = useState(0);
+  const toSeconds = (v: number) => (objective?.unit === 'minutes' ? v * 60 : v);
+  const elapsedSeconds = () =>
+    baseSecondsRef.current + (runStartRef.current ? Math.floor((Date.now() - runStartRef.current) / 1000) : 0);
+
+  // Exercício novo (ou trocado): parte do que já foi gravado nele.
+  useEffect(() => {
+    runStartRef.current = null;
+    baseSecondsRef.current = objective ? toSeconds(objective.actualValue) : 0;
+    setLiveSeconds(baseSecondsRef.current);
+    setRunning(false);
+    // Séries já feitas antes de reabrir não disparam um descanso falso.
+    lastSetRef.current = objective ? Math.floor(objective.actualValue / setSize) : 0;
+    setRestEndsAt(null);
+  }, [objective?.exerciseId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Grava o tempo corrido até agora. Chamado a cada tick, ao pausar e ao sair. */
+  const flushTimer = () => {
+    if (!objective) return;
+    const secs = elapsedSeconds();
+    setLiveSeconds(secs);
+    const value = objective.unit === 'minutes' ? Math.floor(secs / 60) : secs;
+    const base = useHunter.getState().quest?.objectives.find((o) => o.exerciseId === objective.exerciseId);
+    if (base && value > base.actualValue) h.recordValue(objective.exerciseId, value);
+  };
+
   useEffect(() => {
     if (!running || !objective) return;
-    const tick = setInterval(() => {
-      secondsRef.current += 1;
-      const value = objective.unit === 'minutes' ? Math.floor(secondsRef.current / 60) : secondsRef.current;
-      const base = useHunter.getState().quest?.objectives.find((o) => o.exerciseId === objective.exerciseId);
-      if (base && value > base.actualValue) h.recordValue(objective.exerciseId, value);
-    }, 1000);
-    return () => clearInterval(tick);
+    runStartRef.current = Date.now();
+    const tick = setInterval(flushTimer, 500);
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') flushTimer(); });
+    return () => {
+      clearInterval(tick);
+      sub.remove();
+      flushTimer();
+      baseSecondsRef.current = elapsedSeconds();
+      runStartRef.current = null;
+    };
   }, [running, objective?.exerciseId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // R5.6 — descanso automático ao fechar uma série.
@@ -70,17 +115,22 @@ export default function Sessao() {
     if (!objective || timed) return;
     const finishedSets = Math.floor(objective.actualValue / setSize);
     if (finishedSets > lastSetRef.current && finishedSets < sets) {
-      setRestLeft(program.restSeconds);
+      setRestEndsAt(Date.now() + program.restSeconds * 1000);
+      setNowTick(Date.now());
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     lastSetRef.current = finishedSets;
   }, [objective?.actualValue]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (restLeft <= 0) return;
-    const tick = setTimeout(() => setRestLeft((r) => r - 1), 1000);
-    return () => clearTimeout(tick);
-  }, [restLeft]);
+    if (!restEndsAt) return;
+    const tick = setInterval(() => {
+      const now = Date.now();
+      setNowTick(now);
+      if (now >= restEndsAt) setRestEndsAt(null);
+    }, 250);
+    return () => clearInterval(tick);
+  }, [restEndsAt]);
 
   if (!quest || !objective || !exercise) {
     return <Screen><View style={styles.empty}><Txt tone="dim">{t('quest.noObjective')}</Txt></View></Screen>;
@@ -90,6 +140,7 @@ export default function Sessao() {
     : objective.unit === 'minutes' ? t('common.minutes')
       : objective.unit === 'meters' ? t('common.meters') : t('common.reps');
   const done = objective.actualValue >= objective.targetValue;
+  const started = objective.actualValue > 0;
 
   const adjust = async (direction: 'easier' | 'harder') => {
     const next = await h.adjust(objective.exerciseId, direction);
@@ -99,19 +150,21 @@ export default function Sessao() {
     }
     const ex = exerciseById(next);
     setNotice(t('quest.swapped', { name: ex ? exerciseName(ex, locale) : next }));
-    secondsRef.current = 0;
     lastSetRef.current = 0;
     router.setParams({ id: next });
   };
 
   const finish = async () => {
+    flushTimer();
     setRunning(false);
     if (jointPain) {
       await h.logPain({ date: h.today, pattern: exercise.pattern, kind: 'joint' });
     }
     await h.finishObjective(objective.exerciseId, rpe, formOk && !jointPain);
     const q = useHunter.getState().quest!;
-    const next = q.objectives.find((o) => o.actualValue < o.targetValue);
+    // Próximo = o primeiro ainda não ENCERRADO. Usar "abaixo do alvo" prendia
+    // o usuário no exercício que ele acabou de encerrar parcial.
+    const next = q.objectives.find((o) => !o.completedAt && o.exerciseId !== objective.exerciseId);
     if (!next) {
       const c = await h.completeToday();
       router.replace(c ? '/levelup' : '/missao');
@@ -125,7 +178,7 @@ export default function Sessao() {
       <ScrollView contentContainerStyle={styles.root}>
         <View style={styles.header}>
           <Pressable accessibilityRole="button" accessibilityLabel={t('quest.exitSet')}
-            onPress={() => { setRunning(false); router.back(); }} style={styles.close}>
+            onPress={() => { flushTimer(); setRunning(false); router.back(); }} style={styles.close}>
             <Txt tone="dim" style={{ fontSize: 24 }}>×</Txt>
           </Pressable>
           {!timed && <HudLabel tone="muted" style={{ fontSize: 11 }}>{t('quest.set', { current: currentSet, total: sets })}</HudLabel>}
@@ -160,13 +213,17 @@ export default function Sessao() {
                 {Math.floor(restLeft / 60)}:{String(restLeft % 60).padStart(2, '0')}
               </Txt>
               <SystemButton label={t('quest.skipRest')} variant="ghost" height={44}
-                onPress={() => setRestLeft(0)} style={{ alignSelf: 'stretch' }} />
+                onPress={() => setRestEndsAt(null)} style={{ alignSelf: 'stretch' }} />
             </View>
           </SystemWindow>
         ) : timed ? (
           <SystemWindow variant="highlight" padding={20}>
             <View style={{ alignItems: 'center', gap: 12 }}>
-              <Txt variant="statLg" style={{ fontSize: 72 }} accessibilityLiveRegion="polite">{objective.actualValue}</Txt>
+              <Txt variant="statLg" style={{ fontSize: 72, fontVariant: ['tabular-nums'] }} accessibilityLiveRegion="polite">
+                {objective.unit === 'minutes'
+                  ? `${Math.floor(Math.max(liveSeconds, objective.actualValue * 60) / 60)}:${String(Math.max(liveSeconds, objective.actualValue * 60) % 60).padStart(2, '0')}`
+                  : Math.max(liveSeconds, objective.actualValue)}
+              </Txt>
               <Txt variant="body" tone="muted">{t('common.of')} {objective.targetValue} {unitLabel}</Txt>
               <View style={styles.timerRow}>
                 <SystemButton label={running ? t('quest.pause') : t('quest.startTimer')}
@@ -203,7 +260,7 @@ export default function Sessao() {
         </View>
         <Txt variant="bodySm" tone="muted" style={styles.center}>{t('quest.noJudgement')}</Txt>
 
-        {done && (
+        {started && (
           <View style={{ gap: space.md }}>
             <View style={styles.rpeHead}>
               <HudLabel tone="muted" style={{ fontSize: 11 }}>{t('quest.perceivedEffort')}</HudLabel>
@@ -224,9 +281,16 @@ export default function Sessao() {
           </View>
         )}
 
-        <SystemButton label={done ? t('quest.finishSet') : t('quest.markDone')}
-          onPress={done ? finish : () => h.recordValue(objective.exerciseId, objective.targetValue)}
-          variant={done ? 'primary' : 'ghost'} />
+        {done ? (
+          <SystemButton label={t('quest.finishSet')} onPress={finish} />
+        ) : (
+          <>
+            <SystemButton label={t('quest.markDone')} variant="ghost"
+              onPress={() => { setRunning(false); h.recordValue(objective.exerciseId, objective.targetValue); }} />
+            {/* Não conseguiu terminar: registra o que fez e segue. O parcial conta (R5.11). */}
+            {started && <SystemButton label={t('quest.finishPartial')} variant="ghost" onPress={finish} />}
+          </>
+        )}
 
         <View style={styles.errors}>
           <HudLabel tone="muted" style={{ fontSize: 10, marginBottom: 6 }}>{t('codex.commonErrors')}</HudLabel>

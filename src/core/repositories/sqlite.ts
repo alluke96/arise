@@ -186,6 +186,15 @@ export function createSqliteRepositories(db: SqlDriver): Repositories {
         const r = db.get<Row>("select value from app_state where key = 'started_at'");
         return r ? String(r.value) : null;
       },
+      async restoreJourney(startedAt) {
+        db.transaction(() => {
+          db.run('update profile set onboarded = 1, updated_at = ? where id = 1', [now()]);
+          db.run(
+            `insert into app_state (key, value) values ('started_at', ?)
+             on conflict(key) do update set value = min(value, excluded.value)`, [startedAt],
+          );
+        });
+      },
     },
 
     progression: {
@@ -327,6 +336,11 @@ export function createSqliteRepositories(db: SqlDriver): Repositories {
 
     events: {
       async append(e) {
+        appendEvent(e);
+        refoldProgression();
+      },
+      async replace(e) {
+        db.run('delete from domain_event where id = ?', [e.id]);
         appendEvent(e);
         refoldProgression();
       },

@@ -75,7 +75,11 @@ export default function CodiceScreen() {
           const dim = state === 'noIllustration' || state === 'contraindicated' || state === 'rankLocked';
           return (
             <Pressable key={ex.id} accessibilityRole="button" accessibilityState={{ expanded }}
-              onPress={() => setOpen(expanded ? null : ex.id)}
+              onPress={() => {
+                setOpen(expanded ? null : ex.id);
+                // Abrir os detalhes conta como estudo (Inteligência, sombra Arauto).
+                if (!expanded) void useHunter.getState().markCodexRead(ex.id);
+              }}
               style={[styles.step, state === 'current' && styles.stepCurrent, state === 'mastered' && styles.stepMastered, dim && styles.stepBlocked]}>
               <View style={styles.stepHead}>
                 <View style={[styles.num, state === 'current' && styles.numCurrent]}>

@@ -73,6 +73,7 @@ export function foldAll(
   let streak: StreakSnapshot = snapshotFrom(prog);
   const sessions: SessionSummary[] = [];
   const allocated: Record<Attribute, number> = { STR: 0, AGI: 0, VIT: 0, PER: 0, INT: 0 };
+  const codexRead = new Set<string>();
 
   for (const e of ordered) {
     switch (e.kind) {
@@ -121,6 +122,9 @@ export function foldAll(
       case 'inactivity_detected':
         streak = streakTransition(streak, { type: 'days_inactive', days: e.days });
         break;
+      case 'codex_read':
+        codexRead.add(e.exerciseId);
+        break;
       case 'shadow_unlocked':
       case 'pain_logged':
       case 'exercise_adjusted':
@@ -138,7 +142,7 @@ export function foldAll(
     avgSleepHours: ctx.avgSleepHours,
     formOkRatio: avgFormOk(sessions),
     formOkTotal: sessions.reduce((a, s) => a + s.formOkRatio, 0),
-    articlesRead: ctx.articlesRead,
+    articlesRead: ctx.articlesRead + codexRead.size,
     weeksPlanned: ctx.weeksPlanned,
   });
 

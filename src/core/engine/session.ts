@@ -20,6 +20,21 @@ function toBand(avg: number): RpeBand {
   return 9;
 }
 
+/**
+ * Teto de duração de UMA sessão. O XP sai da duração (minutos × 2), e a
+ * duração é medida no relógio: abrir a sessão de manhã e terminar a
+ * caminhada à noite, ou abandonar e concluir no dia seguinte, viraria XP de
+ * horas. Quem chama ainda limita pelo tempo de sessão do perfil.
+ */
+export const MAX_SESSION_MINUTES = 120;
+
+/** Duração que entra no XP: medida, limitada a 1,5× o tempo de sessão escolhido. */
+export function creditedDuration(measuredMin: number, sessionMinutes: number): number {
+  const cap = Math.min(MAX_SESSION_MINUTES, Math.max(5, sessionMinutes * 1.5));
+  if (!Number.isFinite(measuredMin) || measuredMin <= 0) return Math.min(sessionMinutes, cap);
+  return Math.min(measuredMin, cap);
+}
+
 /** Transforma a missão do dia no resumo de sessão que vira evento. */
 export function summarizeQuest(
   quest: DailyQuest,
@@ -67,7 +82,7 @@ export function summarizeQuest(
 
   return {
     date: quest.date,
-    durationMin: Math.max(1, Math.round(opts.durationMin)),
+    durationMin: Math.min(MAX_SESSION_MINUTES, Math.max(1, Math.round(opts.durationMin))),
     avgRpe: toBand(avgRpe),
     completion: allGoodForm ? 'complete_good_form' : allDone ? 'complete' : 'partial',
     resistedVolume,

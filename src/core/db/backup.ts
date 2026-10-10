@@ -19,6 +19,8 @@ export interface ExportBundle {
   version: number;
   exportedAt: string;
   profile: UserProfile | null;
+  /** Início da jornada. Ausente em backups antigos: deduzido dos eventos. */
+  startedAt?: string | null;
   screening: HealthScreening | null;
   events: DomainEvent[];
   sessions: SessionSummary[];
@@ -32,8 +34,9 @@ export async function buildBundle(
   now = new Date().toISOString(),
   quests: DailyQuest[] = [],
 ): Promise<ExportBundle> {
-  const [profile, screening, events, sessions, shadows, pain] = await Promise.all([
+  const [profile, startedAt, screening, events, sessions, shadows, pain] = await Promise.all([
     repos.profile.get(),
+    repos.profile.startedAt(),
     repos.screening.getLatest(),
     repos.events.all(),
     repos.quests.recentSessions(100000),
@@ -46,6 +49,7 @@ export async function buildBundle(
     version: EXPORT_VERSION,
     exportedAt: now,
     profile,
+    startedAt,
     screening,
     events,
     sessions,
@@ -124,7 +128,19 @@ export async function restoreBundle(
   if (bundle.profile) await repos.profile.save(bundle.profile);
   if (bundle.screening) await repos.screening.save(bundle.screening);
 
-  for (const e of bundle.events) await repos.events.append(e);
+  // O posicionamento ORIGINAL vence o de uma instalação nova: sem isso, o
+  // "Rank E de hoje" do onboarding novo entrava depois de todo o histórico e
+  // derrubava o rank conquistado.
+  for (const e of bundle.events) {
+    if (e.id === 'placement') await repos.events.replace(e);
+    else await repos.events.append(e);
+  }
+
+  // A jornada restaurada começou quando começou, não no dia da reinstalação.
+  const journeyStart = bundle.startedAt
+    ?? bundle.events.find((e) => e.id === 'placement')?.at.slice(0, 10)
+    ?? [...bundle.events].sort((a, b) => (a.at < b.at ? -1 : 1))[0]?.at.slice(0, 10);
+  if (bundle.profile && journeyStart) await repos.profile.restoreJourney(journeyStart);
   for (const q of bundle.quests) await repos.quests.save(q);
 
   const known = new Set(bundle.events.map((e) => e.id));

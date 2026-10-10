@@ -38,7 +38,9 @@ export type DomainEvent =
   | (EventBase & {
       kind: 'exercise_adjusted'; pattern: Pattern;
       direction: 'easier' | 'harder'; fromId: string; toId: string;
-    });
+    })
+  /** Estudar um exercício no Códice. Alimenta INT e a sombra Arauto. Id `codex:<exerciseId>`. */
+  | (EventBase & { kind: 'codex_read'; exerciseId: string });
 
 export type EventKind = DomainEvent['kind'];
 
@@ -57,6 +59,7 @@ export const EVENT_TABLE: Record<EventKind, string> = {
   points_spent: 'point_allocations',
   pain_logged: 'pain_log',
   exercise_adjusted: 'exercise_adjustments',
+  codex_read: 'codex_reads',
 };
 
 /**

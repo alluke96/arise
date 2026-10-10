@@ -47,6 +47,7 @@ const SAMPLES: Record<EventKind, DomainEvent> = {
   shadow_unlocked: { ...base, id: 'shadow:sentinela', kind: 'shadow_unlocked', shadowId: 'sentinela' },
   points_spent: { ...base, id: 'p1', kind: 'points_spent', attribute: 'STR', amount: 1 },
   pain_logged: { ...base, id: 'pain:2026-09-27:squat:joint', kind: 'pain_logged', pattern: 'squat', painKind: 'joint' },
+  codex_read: { ...base, id: 'codex:push_wall', kind: 'codex_read', exerciseId: 'push_wall' },
   exercise_adjusted: {
     ...base, id: 'adjust:2026-09-27:push_h:push_wall', kind: 'exercise_adjusted',
     pattern: 'push_h', direction: 'easier', fromId: 'push_knee', toId: 'push_wall',

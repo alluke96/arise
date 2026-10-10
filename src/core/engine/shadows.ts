@@ -95,6 +95,7 @@ export function computeStats(events: DomainEvent[], ctx: StatsContext): HunterSt
 
   let placed = false;
   const sessionDays: string[] = [];
+  const codexRead = new Set<string>();
 
   for (const e of normalizeEvents(events)) {
     const day = e.at.slice(0, 10);
@@ -111,6 +112,7 @@ export function computeStats(events: DomainEvent[], ctx: StatsContext): HunterSt
         s.injuryFreeDays = Math.max(0, daysBetween(day, ctx.today));
         break;
       case 'inactivity_detected': s.sessionsSinceBreak = 0; break;
+      case 'codex_read': codexRead.add(e.exerciseId); break;
       case 'session_completed': {
         if (e.session.rest) break;
         s.sessions += 1;
@@ -151,6 +153,8 @@ export function computeStats(events: DomainEvent[], ctx: StatsContext): HunterSt
     if (n >= ctx.daysPerWeek) s.deloadWeeksHonored += 1;
   }
 
+  // Exercícios estudados no Códice somam aos artigos vindos de fora.
+  s.articlesRead += codexRead.size;
   return s;
 }
 

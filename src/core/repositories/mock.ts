@@ -80,6 +80,10 @@ export function createMockRepositories(seed: MockSeed = {}): Repositories {
         startedAt = startedAt ?? date;
       },
       async startedAt() { return startedAt; },
+      async restoreJourney(date) {
+        onboarded = true;
+        startedAt = startedAt && startedAt < date ? startedAt : date;
+      },
     },
     progression: {
       async get() { return progression; },
@@ -139,6 +143,11 @@ export function createMockRepositories(seed: MockSeed = {}): Repositories {
     },
     events: {
       async append(e) {
+        appendEvent(e);
+        rebuildProjections();
+      },
+      async replace(e) {
+        events = events.filter((x) => x.id !== e.id);
         appendEvent(e);
         rebuildProjections();
       },

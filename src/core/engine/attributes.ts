@@ -25,6 +25,9 @@ export interface AttributeInput {
 
 const norm = (v: number, max: number) => Math.min(Math.max(v, 0), max) / max * 100;
 
+/** Exercícios estudados no Códice para a Inteligência chegar a 100 (metade do catálogo). */
+export const INT_FULL_READS = 40;
+
 /** Sessões com boa forma para a Percepção chegar a 100 — ~30 semanas a 3×/semana. */
 export const PER_FULL_SESSIONS = 90;
 
@@ -58,7 +61,12 @@ export function deriveAttributes(i: AttributeInput): Record<Attribute, number> {
   // pela metade se a forma recente desandar. Antes era só a proporção recente:
   // UMA sessão com boa forma já valia 100.
   const PER = norm(i.formOkTotal, PER_FULL_SESSIONS) * (0.5 + 0.5 * Math.min(Math.max(i.formOkRatio, 0), 1));
-  const INT = norm(i.articlesRead, 15) * 0.6 + norm(i.weeksPlanned, 12) * 0.4;
+  // Inteligência = estudo: cada exercício lido no Códice conta (40 = 100).
+  // Planejamento de semanas ainda não existe no app, então não pesa.
+  const INT = weighted([
+    { value: norm(i.articlesRead, INT_FULL_READS), weight: 0.6, measured: true },
+    { value: norm(i.weeksPlanned, 12), weight: 0.4, measured: i.weeksPlanned > 0 },
+  ]);
 
   return {
     STR: Math.round(STR),

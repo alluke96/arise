@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import {
@@ -12,6 +13,10 @@ import { formatNumber, type TKey } from '../../src/core/i18n';
 import { exerciseById, exerciseName } from '../../src/data/exercises';
 import type { Attribute } from '../../src/core/types';
 import { TEST_BUILD } from '../../src/core/config';
+import { BACKUP_REMIND_DAYS, LAST_BACKUP_KEY, daysSinceBackup } from '../../src/features/backup/files';
+import { repositories } from '../../src/core/repositories';
+import { nowISO } from '../../src/core/clock';
+import { daysBetween } from '../../src/core/engine';
 
 const ATTRS: Attribute[] = ['STR', 'AGI', 'VIT', 'PER', 'INT'];
 
@@ -38,6 +43,16 @@ export default function StatusScreen() {
   // cada chamada, e o Zustand v5 compara snapshot por referência.
   const xp = levelProgress(progression);
 
+  // Lembrete de backup: só depois de uma semana de uso e de uma semana sem exportar.
+  const [backupDue, setBackupDue] = useState(false);
+  useEffect(() => {
+    if (!h.startedAt || daysBetween(h.startedAt, h.today) < BACKUP_REMIND_DAYS) { setBackupDue(false); return; }
+    void repositories.app.getValue(LAST_BACKUP_KEY).then((v) => {
+      const d = daysSinceBackup(v, nowISO());
+      setBackupDue(d === null || d >= BACKUP_REMIND_DAYS);
+    });
+  }, [h.startedAt, h.today]);
+
   if (!profile) return <Screen><View /></Screen>;
 
   const done = quest?.status === 'completed';
@@ -56,6 +71,14 @@ export default function StatusScreen() {
             <HeaderAction href="/ajustes" label={t('status.settings')} tone="muted" />
           </View>
         </View>
+
+        {backupDue && (
+          <Pressable accessibilityRole="button" onPress={() => router.push('/ajustes')}>
+            <Note icon={<IconAlert />}>
+              <Txt variant="bodySm" tone="dim">{t('status.backupDue')}</Txt>
+            </Note>
+          </Pressable>
+        )}
 
         {h.screeningExpired && (
           <Note tone="red" icon={<IconAlert />}>
@@ -117,8 +140,19 @@ export default function StatusScreen() {
             <View style={styles.attrList}>
               {ATTRS.map((k) => (
                 <View key={k} style={styles.attrItem}>
-                  <Txt variant="bodySm" tone="dim" style={{ fontSize: 13 }}>{t(`status.attributes.${k}` as TKey)}</Txt>
+                  <Txt variant="bodySm" tone="dim" style={{ fontSize: 13, flex: 1 }}>{t(`status.attributes.${k}` as TKey)}</Txt>
                   <Txt variant="stat" style={{ fontSize: 16 }}>{progression.attributes[k]}</Txt>
+                  {progression.unspentPoints > 0 && (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t('status.spendPoint', { attribute: t(`status.attributes.${k}` as TKey) })}
+                      onPress={() => void h.spendPoint(k)}
+                      hitSlop={6}
+                      style={styles.plus}
+                    >
+                      <Txt variant="stat" tone="blue" style={{ fontSize: 15 }}>+</Txt>
+                    </Pressable>
+                  )}
                 </View>
               ))}
             </View>
@@ -207,6 +241,10 @@ export default function StatusScreen() {
 const styles = StyleSheet.create({
   content: { padding: space.lg, paddingBottom: 40, gap: space.lg },
   header: { gap: 10 },
+  plus: {
+    width: 28, height: 28, marginLeft: 8, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: color.blueDim, borderWidth: 1, borderColor: color.blueBorder,
+  },
   headerActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   headerAction: {
     minHeight: 36, paddingHorizontal: 14, justifyContent: 'center',
@@ -219,7 +257,7 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: color.line, marginVertical: 15 },
   attrRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   attrList: { flex: 1, gap: 9 },
-  attrItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  attrItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 30 },
   statsRow: { flexDirection: 'row', gap: 10 },
   statCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderWidth: 1 },
   statRed: { backgroundColor: color.redDim, borderColor: color.redBorder },

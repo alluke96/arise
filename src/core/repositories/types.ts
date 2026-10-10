@@ -20,6 +20,12 @@ export interface ProfileRepository {
   completeOnboarding(startedAt?: string): Promise<void>;
   /** Dia em que a jornada começou. Base da semana, das pedras e do calendário. */
   startedAt(): Promise<string | null>;
+  /**
+   * Restauro de backup: marca o onboarding como feito e leva a data de início
+   * para a MAIS ANTIGA entre a atual e a do backup — a jornada restaurada
+   * começou antes da instalação nova.
+   */
+  restoreJourney(startedAt: string): Promise<void>;
 }
 
 export interface ProgressionRepository {
@@ -62,6 +68,8 @@ export interface PainRepository {
  */
 export interface EventRepository {
   append(event: DomainEvent): Promise<void>;
+  /** Grava por cima de um evento com o mesmo id. Só para restauro de backup. */
+  replace(event: DomainEvent): Promise<void>;
   all(): Promise<DomainEvent[]>;
   /** Pendentes de envio ao servidor, em ordem. */
   unsynced(limit: number): Promise<DomainEvent[]>;

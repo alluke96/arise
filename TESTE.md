@@ -22,15 +22,49 @@ Tudo isso sai de uma constante: `TEST_BUILD` em `src/core/config.ts`.
 > ⚠️ O login não é segurança. Usuário e senha estão no código e a sessão é só
 > uma marca no banco local — impede abrir o app por acidente, nada mais.
 
-## Rodar no celular
+## Instalar no celular — 100% offline
+
+O Expo Go **não** serve para semanas de uso: ele carrega o código do seu
+computador e não abre sem ele. Para usar offline, instale o app de verdade.
+Nada no app usa internet: o histórico fica no SQLite do aparelho.
+
+### Android (APK)
 
 ```bash
 npm install
-npx expo start
+npx eas-cli login          # conta Expo grátis
+npx eas-cli build --profile teste --platform android
 ```
 
-Abra o **Expo Go** no celular (mesma rede Wi-Fi) e leia o QR code. Se a rede
-bloquear, use `npx expo start --tunnel`.
+No fim, o EAS mostra um link/QR code para baixar o `.apk`. Abra no celular e
+instale (o Android pede para permitir "instalar apps desta fonte").
+
+- **Versões novas: instale por cima, sem desinstalar.** O EAS assina sempre
+  com a mesma chave, então o histórico continua. Desinstalar apaga tudo.
+- A primeira vez, o EAS pergunta se pode gerar a chave de assinatura: aceite.
+
+### iPhone
+
+Instalar fora da App Store exige conta paga de desenvolvedor Apple
+(`npx eas-cli build --profile teste --platform ios`, distribuição interna) ou
+um Mac com Xcode. Sem isso, a opção é o Android.
+
+## Seu progresso
+
+- **Tudo é gravado na hora**: cada repetição tocada, cada segundo do
+  cronômetro, cada exercício encerrado. Fechar o app no meio do treino não
+  perde nada — ao reabrir, continua de onde parou.
+- **Cronômetro e descanso contam pelo relógio**: pode bloquear a tela no meio
+  da caminhada.
+- **Virada do dia**: ao abrir o app (ou à meia-noite com ele aberto), o dia é
+  recalculado — penalidade de ontem, missão nova. Uma sessão aberta às 23:59
+  conta para o dia em que começou.
+- **Backup toda semana**: Ajustes → Exportar meus dados → salve o arquivo no
+  Drive ou mande por e-mail para você. O app lembra depois de 7 dias.
+- **Celular novo / reinstalou**: na primeira tela, "Já tenho um backup —
+  restaurar". Volta tudo: rank, nível, sombras, histórico e a data de início.
+- **Cuidado no Lab**: "Cumprir hoje automaticamente" e "Avançar dia" mexem no
+  seu histórico real e não têm volta. Os dois pedem confirmação.
 
 ## Como testar a progressão
 

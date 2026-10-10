@@ -1,18 +1,18 @@
 import { create } from 'zustand';
 import {
-  adjustObjective, addDays, buildQuestInput, completeQuest, computeStats, evaluateBenchmark,
+  adjustObjective, addDays, buildQuestInput, completeQuest, computeStats, creditedDuration, evaluateBenchmark,
   evaluateShadows, eventId, foldLadder, generateDailyQuest, isQuestComplete, isScreeningExpired,
   reconcile, unlockedFromEvents,
   type BenchmarkAttempt, type BenchmarkOutcome, type Completion, type LadderPosition,
 } from '../../core/engine';
-import { getDeviceId } from '../../core/ids';
+import { getDeviceId, newId } from '../../core/ids';
 import { getDayOffset, nowISO, setDayOffset } from '../../core/clock';
 import { DEMO_MODE, repositories } from '../../core/repositories';
 import type { DomainEvent } from '../../core/sync/events';
 import { foldAll, INITIAL_PROGRESSION } from '../../core/sync/fold';
 import type { StreakSnapshot } from '../../core/engine/penalty';
 import type {
-  DailyQuest, HealthScreening, Pattern, PainLogEntry, Progression, RpeBand, UserProfile,
+  Attribute, DailyQuest, HealthScreening, Pattern, PainLogEntry, Progression, RpeBand, UserProfile,
 } from '../../core/types';
 import { EXERCISES } from '../../data/exercises';
 import { todayISO, withPartialProgress } from '../../data/mocks/demo';
@@ -40,10 +40,23 @@ interface HunterState {
   dungeonBreak: boolean;
   lastCompletion: Completion | null;
   sessionStartedAt: number | null;
+  /** A tela de sessão está aberta: a virada de dia espera ela fechar. */
+  sessionActive: boolean;
   lastBenchmarkOn: string | null;
 
   boot(): Promise<void>;
   startSession(): void;
+  setSessionActive(active: boolean): void;
+  /** Distribui 1 ponto de atributo (os pontos vêm a cada nível). */
+  spendPoint(attribute: Attribute): Promise<void>;
+  /** Exercício aberto no Códice conta como estudo (INT, sombra Arauto). Idempotente. */
+  markCodexRead(exerciseId: string): Promise<void>;
+  /**
+   * Chamado quando o app volta ao primeiro plano e à meia-noite. Se o dia
+   * mudou, reabre (reconcilia penalidades, gera a missão nova). Devolve se
+   * reabriu. Nunca troca o dia no meio de uma sessão aberta.
+   */
+  refreshDay(): Promise<boolean>;
   recordValue(exerciseId: string, value: number): void;
   finishObjective(exerciseId: string, rpe: RpeBand, formOk: boolean): Promise<void>;
   /** Troca o exercício na hora. Devolve o id novo, ou null se não há degrau. */
@@ -104,6 +117,19 @@ export const useHunter = create<HunterState>((set, get) => {
     set(derive(await repositories.events.all(), profile, startedAt, today));
   }
 
+  /**
+   * Horário para um evento novo: agora, mas nunca antes do último evento do
+   * log. A sessão do dia é gravada às 12:00 UTC da data da missão; sem isto,
+   * um ponto gasto às 8h, depois de treinar às 7h, entraria no log ANTES da
+   * sessão que deu o ponto — e o fold o descartaria em silêncio.
+   */
+  function monotonicAt(): string {
+    const now = nowISO();
+    const last = get().events.at(-1)?.at;
+    if (!last || now > last) return now;
+    return new Date(Date.parse(last) + 1).toISOString();
+  }
+
   async function saveQuest(quest: DailyQuest): Promise<void> {
     set({ quest });
     await repositories.quests.save(quest);
@@ -127,6 +153,7 @@ export const useHunter = create<HunterState>((set, get) => {
     dungeonBreak: false,
     lastCompletion: null,
     sessionStartedAt: null,
+    sessionActive: false,
     lastBenchmarkOn: null,
 
     /**
@@ -163,13 +190,39 @@ export const useHunter = create<HunterState>((set, get) => {
         await repositories.quests.save(quest);
       }
 
+      // Virou o dia: o cronômetro de uma sessão de ontem não vale para hoje.
+      const dayChanged = get().today !== today;
       set({
         ready: true, today, profile, screening, startedAt, quest,
+        ...(dayChanged ? { sessionStartedAt: null } : {}),
         screeningExpired: screening ? isScreeningExpired(screening, today) : true,
         penaltyOpenFor: rec.penaltyOpenFor,
         dungeonBreak: rec.dungeonBreak,
         ...derive(events, profile, startedAt, today),
       });
+    },
+
+    setSessionActive(active) { set({ sessionActive: active }); },
+
+    async spendPoint(attribute) {
+      if (get().progression.unspentPoints <= 0) return;
+      await append([{
+        id: `points:${newId()}`, at: monotonicAt(), deviceId: getDeviceId(),
+        kind: 'points_spent', attribute, amount: 1,
+      }]);
+    },
+
+    async markCodexRead(exerciseId) {
+      const id = `codex:${exerciseId}`;
+      if (!get().profile || get().events.some((e) => e.id === id)) return;
+      await append([{ id, at: monotonicAt(), deviceId: getDeviceId(), kind: 'codex_read', exerciseId }]);
+    },
+
+    async refreshDay() {
+      const { today, sessionActive, ready } = get();
+      if (!ready || sessionActive || todayISO() === today) return false;
+      await get().boot();
+      return true;
     },
 
     startSession() {
@@ -204,7 +257,7 @@ export const useHunter = create<HunterState>((set, get) => {
       if (!quest || !profile) return null;
       const a = adjustObjective({
         quest, exerciseId, direction, catalog: EXERCISES, profile,
-        rank: quest.rank ?? progression.rank, deviceId: getDeviceId(), at: nowISO(),
+        rank: quest.rank ?? progression.rank, deviceId: getDeviceId(), at: monotonicAt(),
       });
       if (!a) return null;
       await saveQuest(a.quest);
@@ -216,9 +269,11 @@ export const useHunter = create<HunterState>((set, get) => {
     async completeToday() {
       const { quest, events, profile, startedAt, today, sessionStartedAt } = get();
       if (!quest || !profile || !startedAt) return null;
-      const durationMin = sessionStartedAt
-        ? (Date.now() - sessionStartedAt) / 60_000
-        : profile.sessionMinutes;
+      // Tempo de relógio desde a abertura da sessão, com teto: é ele que vira XP.
+      const durationMin = creditedDuration(
+        sessionStartedAt ? (Date.now() - sessionStartedAt) / 60_000 : profile.sessionMinutes,
+        profile.sessionMinutes,
+      );
 
       const completion = completeQuest({
         quest, catalog: EXERCISES, events, deviceId: getDeviceId(), durationMin,
@@ -240,7 +295,7 @@ export const useHunter = create<HunterState>((set, get) => {
       const day = get().penaltyOpenFor;
       if (!day) return;
       await append([{
-        id: eventId.penaltyDone(day), at: nowISO(),
+        id: eventId.penaltyDone(day), at: monotonicAt(),
         deviceId: getDeviceId(), kind: 'penalty_completed',
       }]);
       set({ penaltyOpenFor: null });
@@ -251,7 +306,7 @@ export const useHunter = create<HunterState>((set, get) => {
       // Sem pedra, o botão não protege nada — nem de graça.
       if (!day || progression.recoveryStones <= 0) return false;
       await append([{
-        id: eventId.stoneUse(day), at: nowISO(),
+        id: eventId.stoneUse(day), at: monotonicAt(),
         deviceId: getDeviceId(), kind: 'stone_used',
       }]);
       set({ penaltyOpenFor: null });
@@ -265,7 +320,7 @@ export const useHunter = create<HunterState>((set, get) => {
       const outcome = evaluateBenchmark(progression.rank, attempt);
       if (outcome.passed) {
         await append([{
-          id: `bench:${today}`, at: nowISO(), deviceId: getDeviceId(),
+          id: `bench:${today}`, at: monotonicAt(), deviceId: getDeviceId(),
           kind: 'benchmark_passed', rankAfter: outcome.targetRank,
         }]);
       }
@@ -280,7 +335,7 @@ export const useHunter = create<HunterState>((set, get) => {
 
     async setInjured(injured) {
       await append([{
-        id: `injury:${injured ? 'on' : 'off'}:${Date.now()}`, at: nowISO(),
+        id: `injury:${injured ? 'on' : 'off'}:${Date.now()}`, at: monotonicAt(),
         deviceId: getDeviceId(), kind: injured ? 'injury_declared' : 'injury_cleared',
       }]);
     },

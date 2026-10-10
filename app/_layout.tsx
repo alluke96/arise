@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -67,6 +68,25 @@ export default function RootLayout() {
   const ready = fontsLoaded && booted;
   useEffect(() => {
     if (ready) void SplashScreen.hideAsync();
+  }, [ready]);
+
+  /**
+   * Virada de dia. O celular mantém o app suspenso de um dia para o outro;
+   * sem isto, abrir de manhã mostrava a missão de ontem e a penalidade só
+   * aparecia quando o app fosse fechado de vez. Checa ao voltar ao primeiro
+   * plano e a cada minuto com o app aberto (passa da meia-noite na tela).
+   */
+  useEffect(() => {
+    if (!ready) return;
+    const check = async () => {
+      if (!(await useHunter.getState().refreshDay())) return;
+      const { profile, quest, startedAt } = useHunter.getState();
+      await useBilling.getState().refresh(startedAt);
+      if (profile && quest) void syncNotifications(quest, profile.preferredTime);
+    };
+    const sub = AppState.addEventListener('change', (state) => { if (state === 'active') void check(); });
+    const tick = setInterval(() => { void check(); }, 60_000);
+    return () => { sub.remove(); clearInterval(tick); };
   }, [ready]);
 
   if (!ready) return null;

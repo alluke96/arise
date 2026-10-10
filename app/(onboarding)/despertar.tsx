@@ -1,11 +1,36 @@
-import { StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { HudLabel, IconArrow, Screen, SystemButton, Txt, color, space } from '../../src/ui';
-import { useT } from '../../src/features/settings/store';
+import { useSettings, useT } from '../../src/features/settings/store';
+import { useHunter } from '../../src/features/hunter/store';
+import { importFromFile } from '../../src/features/backup/files';
 
 export default function Despertar() {
   const router = useRouter();
   const t = useT();
+  const [restoring, setRestoring] = useState(false);
+
+  /** Celular novo: traz o histórico de volta sem refazer o onboarding. */
+  const restore = async () => {
+    setRestoring(true);
+    try {
+      const report = await importFromFile();
+      if (!report) return;
+      if (!report.profileRestored) {
+        Alert.alert(t('settings.importData'), t('onboarding.restoreNoProfile'));
+        return;
+      }
+      await useHunter.getState().boot();
+      await useSettings.getState().hydrate(useHunter.getState().profile, useSettings.getState().locale);
+      Alert.alert(t('settings.importDone'), t('settings.importSummary', { events: report.events, quests: report.quests }));
+      router.replace('/');
+    } catch (e) {
+      Alert.alert(t('settings.importData'), `${t('settings.importInvalid')}\n\n${e instanceof Error ? e.message : ''}`);
+    } finally {
+      setRestoring(false);
+    }
+  };
 
   return (
     <Screen tone="ritual">
@@ -40,6 +65,8 @@ export default function Despertar() {
         <View style={styles.actions}>
           <SystemButton label={t('common.accept')} icon={<IconArrow />}
             onPress={() => router.push('/(onboarding)/biometria')} />
+          <SystemButton label={restoring ? '…' : t('onboarding.restoreBackup')} variant="ghost" height={46}
+            disabled={restoring} onPress={restore} />
           <Txt variant="bodySm" tone="muted" style={styles.legal}>{t('onboarding.medicalDisclaimer')}</Txt>
         </View>
       </View>

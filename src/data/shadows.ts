@@ -23,7 +23,7 @@ const SPECS: S[] = [
   { id: 'sabujo', pt: 'Sabujo', en: 'Hound', grade: 'soldier',
     cond: '10.000 passos em um dia', perk: 'Widget de passos na tela de Status' },
   { id: 'arauto', pt: 'Arauto', en: 'Herald', grade: 'soldier',
-    cond: 'Ler 3 artigos do Códice', perk: 'Desbloqueia explicações avançadas' },
+    cond: 'Estudar 3 exercícios no Códice', perk: 'Desbloqueia explicações avançadas' },
   { id: 'lanceiro', pt: 'Lanceiro', en: 'Lancer', grade: 'soldier',
     cond: 'Concluir 10 sessões', perk: 'Desbloqueia o histórico em gráfico' },
   { id: 'vigia_noturno', pt: 'Vigia Noturno', en: 'Night Watch', grade: 'soldier',

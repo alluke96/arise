@@ -60,10 +60,16 @@ export default function Laboratorio() {
     try { await fn(); } finally { setBusy(false); }
   };
 
-  const skipWeek = () => Alert.alert(t('lab.skipWeekTitle'), t('lab.skipWeekBody'), [
-    { text: t('common.cancel'), style: 'cancel' },
-    { text: t('common.confirm'), onPress: () => void run(() => h.advanceDays(7)) },
-  ]);
+  // Em uso real, as três ações abaixo mexem no histórico de verdade e não têm
+  // volta: sempre pedem confirmação.
+  const confirm = (title: string, body: string, action: () => Promise<unknown>) =>
+    Alert.alert(title, body, [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.confirm'), style: 'destructive', onPress: () => void run(action) },
+    ]);
+  const skipWeek = () => confirm(t('lab.skipWeekTitle'), t('lab.skipWeekBody'), () => h.advanceDays(7));
+  const nextDay = () => confirm(t('lab.nextDayTitle'), t('lab.nextDayBody'), () => h.advanceDays(1));
+  const autoComplete = () => confirm(t('lab.autoCompleteTitle'), t('lab.autoCompleteBody'), () => h.autoCompleteToday());
 
   const offset = getDayOffset();
   const todayDone = h.quest?.status === 'completed';
@@ -83,9 +89,9 @@ export default function Laboratorio() {
           <Row label={t('lab.todayQuest')}
             value={h.quest?.isRestDay ? t('lab.rest') : todayDone ? t('lab.done') : t('lab.pending')} />
           <SystemButton label={t('lab.autoComplete')} height={48} disabled={busy || !h.quest || todayDone}
-            onPress={() => void run(() => h.autoCompleteToday())} />
+            onPress={autoComplete} />
           <SystemButton label={t('lab.nextDay')} variant="blue" height={48} disabled={busy}
-            onPress={() => void run(() => h.advanceDays(1))} />
+            onPress={nextDay} />
           <SystemButton label={t('lab.skipWeek')} variant="ghost" height={46} disabled={busy} onPress={skipWeek} />
           <Txt variant="bodySm" tone="muted">{t('lab.clockNote')}</Txt>
         </Section>

@@ -8,7 +8,11 @@ import {
 import { useLocale, useSettings, useSystemText, useT } from '../src/features/settings/store';
 import { useHunter } from '../src/features/hunter/store';
 import { useBilling } from '../src/features/billing/store';
-import { exportToFile, importFromFile } from '../src/features/backup/files';
+import {
+  BACKUP_REMIND_DAYS, LAST_BACKUP_KEY, daysSinceBackup, exportToFile, importFromFile,
+} from '../src/features/backup/files';
+import { repositories } from '../src/core/repositories';
+import { nowISO } from '../src/core/clock';
 import { syncNotifications } from '../src/features/notifications/adapter';
 import { LOCALES, LOCALE_LABEL, formatLength, formatMass, type TKey } from '../src/core/i18n';
 import type { NotificationPrefs } from '../src/core/notifications/schedule';
@@ -28,6 +32,10 @@ export default function Ajustes() {
   const entitlement = useBilling((s) => s.entitlement);
   const subscription = useBilling((s) => s.subscription);
   const [busy, setBusy] = useState<'export' | 'import' | null>(null);
+  const [backupDays, setBackupDays] = useState<number | null>(null);
+  useEffect(() => {
+    void repositories.app.getValue(LAST_BACKUP_KEY).then((v) => setBackupDays(daysSinceBackup(v, nowISO())));
+  }, []);
 
   useEffect(() => { void useBilling.getState().refresh(h.startedAt); }, [h.startedAt]);
 
@@ -54,6 +62,7 @@ export default function Ajustes() {
     setBusy('export');
     try {
       const r = await exportToFile();
+      setBackupDays(0);
       Alert.alert(t('settings.exportDone'), t('settings.exportSummary', {
         events: r.events, kb: Math.max(1, Math.round(r.bytes / 1024)),
       }));
@@ -204,6 +213,14 @@ export default function Ajustes() {
 
         <Section label={t('settings.privacy')}>
           <Row label={t('settings.sync')} value={t('settings.syncLocal')} />
+          <Row label={t('settings.lastBackup')}
+            value={backupDays === null ? t('settings.backupNever')
+              : backupDays === 0 ? t('settings.backupToday') : t('settings.backupDaysAgo', { days: backupDays })} />
+          {(backupDays === null || backupDays >= BACKUP_REMIND_DAYS) && (
+            <Note tone="red" icon={<IconInfo />}>
+              <Txt variant="bodySm" tone="dim">{t('settings.backupNudge')}</Txt>
+            </Note>
+          )}
           <SystemButton label={busy === 'export' ? '…' : t('settings.exportData')}
             variant="blue" height={46} onPress={onExport} disabled={busy !== null} />
           <SystemButton label={busy === 'import' ? '…' : t('settings.importData')}
