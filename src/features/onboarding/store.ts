@@ -1,5 +1,7 @@
 import { create } from 'zustand';
-import { STARTING_RANK, evaluateParq, type BaselineAnswers, type ParqKey } from '../../core/engine';
+import {
+  MAX_TRAINING_DAYS, STARTING_RANK, evaluateParq, suggestedWeekdays, type BaselineAnswers, type ParqKey,
+} from '../../core/engine';
 import { getDeviceId } from '../../core/ids';
 import { repositories } from '../../core/repositories';
 import type { Equipment, Limitation, UserProfile } from '../../core/types';
@@ -13,7 +15,10 @@ interface OnboardingState {
   draft: UserProfile;
   parq: Partial<Record<ParqKey, boolean>>;
   baseline: BaselineAnswers;
+  /** Dias da semana de treino escolhidos (0 = domingo). */
+  trainingDays: number[];
   setDraft(patch: Partial<UserProfile>): void;
+  toggleTrainingDay(day: number): void;
   setParq(key: ParqKey, value: boolean): void;
   setBaseline(patch: Partial<BaselineAnswers>): void;
   toggleLimitation(l: Limitation): void;
@@ -46,6 +51,15 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
   draft: DEFAULT_DRAFT,
   parq: {},
   baseline: DEFAULT_BASELINE,
+  // Sugestão começando HOJE: abrir o app pela primeira vez num sábado não
+  // pode cair num "descanse".
+  trainingDays: suggestedWeekdays(todayISO()),
+
+  toggleTrainingDay(day) {
+    const cur = get().trainingDays;
+    if (cur.includes(day)) set({ trainingDays: cur.filter((d) => d !== day) });
+    else if (cur.length < MAX_TRAINING_DAYS) set({ trainingDays: [...cur, day].sort((a, b) => a - b) });
+  },
 
   setDraft(patch) { set({ draft: { ...get().draft, ...patch } }); },
   setParq(key, value) { set({ parq: { ...get().parq, [key]: value } }); },
@@ -68,9 +82,17 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
    * e a data de início da jornada.
    */
   async commit() {
-    const { draft, parq } = get();
+    const { draft, parq, trainingDays } = get();
     const today = todayISO();
-    await repositories.profile.save({ ...draft, hunterName: draft.hunterName.trim().toUpperCase() || 'CAÇADOR' });
+    const daysPerWeek = trainingDays.length as UserProfile['daysPerWeek'];
+    await repositories.profile.save({
+      ...draft, daysPerWeek, hunterName: draft.hunterName.trim().toUpperCase() || 'CAÇADOR',
+    });
+    // A agenda escolhida vale desde o primeiro dia (00:00, antes de tudo).
+    await repositories.events.append({
+      id: 'schedule:start', at: `${today}T00:00:00.000Z`, deviceId: getDeviceId(),
+      kind: 'schedule_changed', weekdays: trainingDays,
+    });
     await repositories.screening.save(evaluateParq({ answers: parq, limitations: draft.limitations, date: today }));
     await repositories.events.append({
       id: 'placement', at: `${today}T12:00:00.000Z`, deviceId: getDeviceId(),

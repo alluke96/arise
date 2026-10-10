@@ -40,7 +40,13 @@ export type DomainEvent =
       direction: 'easier' | 'harder'; fromId: string; toId: string;
     })
   /** Estudar um exercício no Códice. Alimenta INT e a sombra Arauto. Id `codex:<exerciseId>`. */
-  | (EventBase & { kind: 'codex_read'; exerciseId: string });
+  | (EventBase & { kind: 'codex_read'; exerciseId: string })
+  /**
+   * Dias da semana de treino (0 = domingo), valendo a partir do dia de `at`.
+   * É evento, e não campo do perfil, para que trocar a agenda não reescreva o
+   * passado: cada dia é julgado pela agenda que valia nele.
+   */
+  | (EventBase & { kind: 'schedule_changed'; weekdays: number[] });
 
 export type EventKind = DomainEvent['kind'];
 
@@ -60,6 +66,7 @@ export const EVENT_TABLE: Record<EventKind, string> = {
   pain_logged: 'pain_log',
   exercise_adjusted: 'exercise_adjustments',
   codex_read: 'codex_reads',
+  schedule_changed: 'schedule_changes',
 };
 
 /**

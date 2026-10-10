@@ -37,8 +37,11 @@ let dir = '';
 let driver: SqlDriver;
 const initialState = useHunter.getState();
 
+/** Banco do "aparelho" atual (o teste de backup troca para um aparelho novo). */
+let dbName = 'arise.db';
+
 function open(): void {
-  driver = createNodeDriver(join(dir, 'arise.db'));
+  driver = createNodeDriver(join(dir, dbName));
   holder.repos = createSqliteRepositories(driver);
 }
 
@@ -293,8 +296,8 @@ describe('cinco semanas de uso real, fechando e abrindo o app todo dia', () => {
     const freshDevice = async (name: string) => {
       driver.close();
       useHunter.setState(initialState, true);
-      driver = createNodeDriver(join(dir, name));
-      holder.repos = createSqliteRepositories(driver);
+      dbName = name;
+      open();
     };
 
     // O celular quebra alguns dias depois do último backup.
@@ -329,10 +332,34 @@ describe('cinco semanas de uso real, fechando e abrindo o app todo dia', () => {
     expect(useHunter.getState().profile?.hunterName).toBe('TESTE');
   });
 
+  it('trocar os dias de treino: vale hoje, refaz a missão intocada, não pune o passado', async () => {
+    const h = useHunter.getState();
+    const wd = new Date(`${h.today}T00:00:00Z`).getUTCDay();
+    const wasTraining = h.trainingDays.includes(wd);
+    const untouched = h.quest!.status === 'pending' && h.quest!.objectives.every((o) => o.actualValue === 0);
+    // Inverte o dia de hoje: se era treino vira descanso, e vice-versa.
+    const next = (wasTraining ? [wd + 1, wd + 3, wd + 5] : [wd, wd + 2, wd + 4]).map((d) => d % 7);
+    const skipsBefore = h.events.filter((e) => e.kind === 'penalty_skipped').length;
+
+    await h.setTrainingDays(next);
+    const after = useHunter.getState();
+    expect(after.trainingDays).toEqual([...next].sort((a, b) => a - b));
+    expect(after.profile!.daysPerWeek).toBe(3);
+    if (untouched) expect(after.quest!.isRestDay).toBe(wasTraining);
+
+    await restartApp();
+    const reopened = useHunter.getState();
+    expect(reopened.trainingDays).toEqual(after.trainingDays);
+    expect(reopened.events.filter((e) => e.kind === 'penalty_skipped').length).toBe(skipsBefore);
+    expect(reopened.penaltyOpenFor).toBe(after.penaltyOpenFor);
+  });
+
   it('a carga cresceu sem saltos', async () => {
     const h = useHunter.getState();
+    // Só sessões feitas: a missão de hoje, depois de dias parado, vem em
+    // reentrada (mais leve) de propósito.
     const quests = (await holder.repos.quests.between(h.startedAt!, h.today))
-      .filter((q) => !q.isRestDay && !q.isDeload);
+      .filter((q) => !q.isRestDay && !q.isDeload && q.status === 'completed');
     const byId = new Map(EXERCISES.map((e) => [e.id, e]));
     const load = (q: (typeof quests)[number]) => q.objectives
       .filter((o) => byId.get(o.exerciseId)!.pattern === 'squat')

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { INTRO_CYCLES, terminalDurationMs, thinkingSteps } from '../intro';
+import { INTRO_CYCLES, INTRO_LINE_PAUSE_MS, linePauseMs, terminalDurationMs, thinkingSteps } from '../intro';
 
 describe('abertura: cada linha pensa antes de aparecer', () => {
   const steps = thinkingSteps(4);
@@ -14,6 +14,11 @@ describe('abertura: cada linha pensa antes de aparecer', () => {
     const lines = steps.map((s) => s.line);
     expect(lines).toEqual([...lines].sort((a, b) => a - b));
     expect(new Set(lines)).toEqual(new Set([0, 1, 2, 3]));
+  });
+
+  it('a última linha segura mais de 1 segundo antes do ARISE surgir', () => {
+    expect(linePauseMs(3, 4)).toBeGreaterThan(1000);
+    expect(linePauseMs(0, 4)).toBe(INTRO_LINE_PAUSE_MS);
   });
 
   it('o terminal inteiro leva entre 6 e 12 segundos', () => {

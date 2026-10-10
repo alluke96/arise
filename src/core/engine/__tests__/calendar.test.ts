@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  addDays, daysBetween, eventId, isTrainingDay, reconcile, trainingWeekdays, weekIndexOf,
+  addDays, daysBetween, eventId, isTrainingDay, makeSchedule, reconcile, suggestedWeekdays, trainingWeekdays, weekIndexOf,
 } from '../calendar';
 import { foldAll } from '../../sync/fold';
 import type { DomainEvent } from '../../sync/events';
@@ -179,5 +179,55 @@ describe('integração com o fold', () => {
     const r = run(events, '2026-09-22');
     const { streak } = foldAll([...events, ...r.toAppend]);
     expect(streak.reentrySessionsLeft).toBe(3);
+  });
+});
+
+describe('dias de treino escolhidos', () => {
+  const schedule = (id: string, day: string, weekdays: number[]): DomainEvent => ({
+    id, at: `${day}T12:00:00.000Z`, deviceId: 'd', kind: 'schedule_changed', weekdays,
+  });
+
+  it('a sugestão começa hoje: quem se cadastra num sábado treina no primeiro dia', () => {
+    const sat = '2026-10-10';
+    expect(new Date(`${sat}T00:00:00Z`).getUTCDay()).toBe(6);
+    const days = suggestedWeekdays(sat);
+    expect(days).toContain(6);
+    expect(days).toHaveLength(3);
+    expect(isTrainingDay(sat, days)).toBe(true);
+  });
+
+  it('a agenda escolhida decide o dia, e não a frequência padrão', () => {
+    const at = makeSchedule([schedule('schedule:start', START, [0, 2, 4])], 3);
+    expect(at('2026-09-13')).toEqual([0, 2, 4]); // domingo passa a ser treino
+    expect(isTrainingDay('2026-09-14', at('2026-09-14'))).toBe(false); // segunda não
+  });
+
+  it('trocar os dias NÃO cria penalidade retroativa', () => {
+    // Começou com ter/qui/sáb e treinou certinho por duas semanas…
+    const history = [
+      schedule('schedule:start', START, [2, 4, 6]),
+      session('2026-09-15'), session('2026-09-17'), session('2026-09-19'),
+      session('2026-09-22'), session('2026-09-24'), session('2026-09-26'),
+    ];
+    // …e no domingo 27 trocou para seg/qua/sex (o perfil passa a dizer 3/semana).
+    const events = [...history, schedule('schedule:x', '2026-09-27', [1, 3, 5])];
+    const r = run(events, '2026-09-28');
+    // As segundas/quartas/sextas antigas eram descanso: nada de penalidade.
+    expect(kinds(r)).toEqual([]);
+    expect(r.penaltyOpenFor).toBeNull();
+    expect(r.missedDays).toEqual([]);
+  });
+
+  it('a agenda nova vale do dia da troca em diante', () => {
+    const events = [session('2026-09-14'), schedule('schedule:x', '2026-09-15', [2, 4, 6])];
+    // Quarta 16 deixou de ser treino; terça 15 (dia da troca) já é. Hoje é quinta 17.
+    const r = run(events, '2026-09-17');
+    expect(r.missedDays).toEqual(['2026-09-15']);
+    expect(r.penaltyOpenFor).toBeNull();
+    expect(kinds(r)).toEqual([eventId.penaltySkip('2026-09-15')]);
+  });
+
+  it('sem nenhum evento de agenda (perfis antigos), vale a frequência do perfil', () => {
+    expect(makeSchedule([], 3)('2026-09-14')).toEqual(trainingWeekdays(3));
   });
 });

@@ -18,6 +18,8 @@ import { NOTIFICATIONS_SUPPORTED, syncNotifications } from '../src/features/noti
 import { LOCALES, LOCALE_LABEL, formatLength, formatMass, type TKey } from '../src/core/i18n';
 import type { NotificationPrefs } from '../src/core/notifications/schedule';
 import { TEST_BUILD } from '../src/core/config';
+import { WeekdayPicker } from '../src/features/common/WeekdayPicker';
+import { MAX_TRAINING_DAYS, MIN_TRAINING_DAYS } from '../src/core/engine';
 import { useAuth } from '../src/features/auth/store';
 
 export default function Ajustes() {
@@ -34,6 +36,11 @@ export default function Ajustes() {
   const subscription = useBilling((s) => s.subscription);
   const [busy, setBusy] = useState<'export' | 'import' | null>(null);
   const [backupDays, setBackupDays] = useState<number | null>(null);
+  // Dias de treino: rascunho local, salvo só no botão.
+  const [days, setDays] = useState<number[]>(h.trainingDays);
+  useEffect(() => { setDays(h.trainingDays); }, [h.trainingDays.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  const daysValid = days.length >= MIN_TRAINING_DAYS && days.length <= MAX_TRAINING_DAYS;
+  const daysChanged = days.join(',') !== h.trainingDays.join(',');
   useEffect(() => {
     void repositories.app.getValue(LAST_BACKUP_KEY).then((v) => setBackupDays(daysSinceBackup(v, nowISO())));
   }, []);
@@ -190,6 +197,23 @@ export default function Ajustes() {
           )}
           <Txt variant="bodySm" tone="muted">{t('settings.notifCap')}</Txt>
           </>
+          )}
+        </Section>
+
+        <Section label={t('onboarding.trainingDays')}>
+          <WeekdayPicker value={days} onToggle={(d) => setDays((cur) =>
+            cur.includes(d) ? cur.filter((x) => x !== d)
+              : cur.length < MAX_TRAINING_DAYS ? [...cur, d].sort((a, b) => a - b) : cur)} />
+          <Txt variant="bodySm" tone={daysValid ? 'muted' : 'red'}>
+            {daysValid ? t('settings.trainingDaysNote')
+              : t('onboarding.trainingDaysInvalid', { min: MIN_TRAINING_DAYS, max: MAX_TRAINING_DAYS })}
+          </Txt>
+          {daysChanged && (
+            <SystemButton label={t('settings.saveTrainingDays')} variant="blue" height={46} disabled={!daysValid}
+              onPress={async () => {
+                await h.setTrainingDays(days);
+                showAlert(t('settings.trainingDaysSaved'), t('settings.trainingDaysNote'));
+              }} />
           )}
         </Section>
 

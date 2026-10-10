@@ -121,6 +121,11 @@ QR code do terminal e toque no aviso. Login: `admin` / `admin`.
   Drive ou mande por e-mail para você. O app lembra depois de 7 dias.
 - **Celular novo / reinstalou**: na primeira tela, "Restaurar backup".
   Volta tudo: rank, nível, sombras, histórico e a data de início.
+- **Dias de treino**: você escolhe no onboarding (de 2 a 5 dias). A sugestão
+  já inclui o dia de hoje, então dá para começar num sábado treinando. Para
+  mudar depois: Ajustes → Dias de treino → Salvar. Vale a partir de hoje; os
+  dias que já passaram não mudam (trocar a agenda não gera penalidade
+  retroativa). Se a missão de hoje ainda não foi tocada, ela é refeita na hora.
 - **Cuidado no Lab**: "Cumprir hoje automaticamente" e "Avançar dia" mexem no
   seu histórico real e não têm volta. Os dois pedem confirmação.
 
@@ -135,6 +140,8 @@ QR code do terminal e toque no aviso. Login: `admin` / `admin`.
    - **Cumprir hoje automaticamente**: marca tudo como feito com boa forma.
    - **Avançar para o dia seguinte**: adianta o relógio do app em 1 dia.
    - **Pular 7 dias sem treinar**: testa a Zona de Penalidade e o Dungeon Break.
+   - **Rever a abertura**: toca de novo a animação do "Sinal detectado" (ela só
+     aparece sozinha antes do onboarding).
 4. Para subir de rank, use **Reavaliar** no Status. A primeira fica liberada desde o primeiro dia; depois, a cada 21 dias.
 
 O relógio só anda para frente. **Ajustes → Apagar tudo** zera o histórico e

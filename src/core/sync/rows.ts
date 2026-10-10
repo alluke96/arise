@@ -47,6 +47,7 @@ export function eventToRow(e: DomainEvent, userId: string): EventRow {
     case 'points_spent': return { table, row: { ...base, attribute: e.attribute, amount: e.amount } };
     case 'pain_logged': return { table, row: { ...base, pattern: e.pattern, kind: e.painKind } };
     case 'codex_read': return { table, row: { ...base, exercise_id: e.exerciseId } };
+    case 'schedule_changed': return { table, row: { ...base, weekdays: e.weekdays } };
     case 'exercise_adjusted':
       return {
         table,

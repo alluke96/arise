@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import {
   adjustObjective, addDays, buildQuestInput, completeQuest, computeStats, creditedDuration, evaluateBenchmark,
   evaluateShadows, eventId, foldLadder, generateDailyQuest, isQuestComplete, isScreeningExpired,
-  reconcile, unlockedFromEvents,
+  makeSchedule, reconcile, unlockedFromEvents,
   type BenchmarkAttempt, type BenchmarkOutcome, type Completion, type LadderPosition,
 } from '../../core/engine';
 import { getDeviceId, newId } from '../../core/ids';
@@ -34,6 +34,8 @@ interface HunterState {
   ladder: Partial<Record<Pattern, LadderPosition>>;
   shadowProgress: Record<string, number>;
   unlockedShadows: string[];
+  /** Dias da semana de treino em vigor hoje (0 = domingo). */
+  trainingDays: number[];
   quest: DailyQuest | null;
   penaltyOpenFor: string | null;
   /** Dungeon Break detectado nesta abertura — mostrado uma vez. */
@@ -44,9 +46,16 @@ interface HunterState {
   sessionActive: boolean;
   lastBenchmarkOn: string | null;
 
-  boot(): Promise<void>;
+  /** `regenerateIfUntouched`: refaz a missão de hoje se ela ainda não foi começada. */
+  boot(opts?: { regenerateIfUntouched?: boolean }): Promise<void>;
   startSession(): void;
   setSessionActive(active: boolean): void;
+  /**
+   * Troca os dias de treino. Vale de HOJE em diante — os dias passados seguem
+   * julgados pela agenda antiga (sem penalidade retroativa). Se a missão de
+   * hoje ainda não foi começada, ela é refeita com a agenda nova.
+   */
+  setTrainingDays(weekdays: number[]): Promise<void>;
   /** Distribui 1 ponto de atributo (os pontos vêm a cada nível). */
   spendPoint(attribute: Attribute): Promise<void>;
   /** Exercício aberto no Códice conta como estudo (INT, sombra Arauto). Idempotente. */
@@ -101,6 +110,7 @@ export const useHunter = create<HunterState>((set, get) => {
     const lastBench = [...events].reverse().find((e) => e.kind === 'benchmark_passed' && e.id !== 'placement');
     return {
       events,
+      trainingDays: [...makeSchedule(events, profile.daysPerWeek)(today)],
       progression: folded.progression,
       streak: folded.streak,
       ladder: foldLadder(events, EXERCISES, profile),
@@ -148,6 +158,7 @@ export const useHunter = create<HunterState>((set, get) => {
     ladder: {},
     shadowProgress: {},
     unlockedShadows: [],
+    trainingDays: [],
     quest: null,
     penaltyOpenFor: null,
     dungeonBreak: false,
@@ -161,7 +172,7 @@ export const useHunter = create<HunterState>((set, get) => {
      * penalidades vencidas, Dungeon Break) e gera a missão de hoje com os
      * dados reais do usuário.
      */
-    async boot() {
+    async boot(opts) {
       const today = todayISO();
       const profile = await repositories.profile.get();
       if (!profile || !(await repositories.profile.isOnboarded())) {
@@ -179,7 +190,9 @@ export const useHunter = create<HunterState>((set, get) => {
       if (rec.toAppend.length) events = await repositories.events.all();
 
       let quest = await repositories.quests.forDate(today);
-      if (!quest && screening) {
+      const untouched = quest !== null && quest.status === 'pending'
+        && quest.objectives.every((o) => o.actualValue === 0);
+      if ((!quest || (opts?.regenerateIfUntouched && untouched)) && screening) {
         const input = buildQuestInput({
           profile, events, screening, catalog: EXERCISES, startedAt, today,
           quests: await repositories.quests.between(addDays(today, -28), addDays(today, -1)),
@@ -203,6 +216,21 @@ export const useHunter = create<HunterState>((set, get) => {
     },
 
     setSessionActive(active) { set({ sessionActive: active }); },
+
+    async setTrainingDays(weekdays) {
+      const { profile, today, events } = get();
+      if (!profile) return;
+      const days = [...new Set(weekdays)].sort((a, b) => a - b);
+      // Data LOCAL de hoje no evento (meio-dia UTC cai no mesmo dia em todo o
+      // Brasil): às 21h, "agora" em UTC já é amanhã e a troca valeria só lá.
+      const sameDay = events
+        .filter((e) => e.kind === 'schedule_changed' && e.at.slice(0, 10) === today)
+        .map((e) => e.at).sort().at(-1);
+      const at = sameDay ? new Date(Date.parse(sameDay) + 1).toISOString() : `${today}T12:00:00.000Z`;
+      await append([{ id: `schedule:${newId()}`, at, deviceId: getDeviceId(), kind: 'schedule_changed', weekdays: days }]);
+      await get().saveProfile({ daysPerWeek: days.length as UserProfile['daysPerWeek'] });
+      await get().boot({ regenerateIfUntouched: true });
+    },
 
     async spendPoint(attribute) {
       if (get().progression.unspentPoints <= 0) return;
@@ -385,7 +413,7 @@ export const useHunter = create<HunterState>((set, get) => {
         today: todayISO(),
         ready: true, profile: null, screening: null, startedAt: null, events: [],
         progression: INITIAL_PROGRESSION, streak: null, quest: null, ladder: {},
-        shadowProgress: {}, unlockedShadows: [], penaltyOpenFor: null,
+        shadowProgress: {}, unlockedShadows: [], trainingDays: [], penaltyOpenFor: null,
         dungeonBreak: false, lastCompletion: null,
       });
     },

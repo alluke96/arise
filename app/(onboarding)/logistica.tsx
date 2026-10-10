@@ -4,6 +4,8 @@ import { Choice, HudLabel, IconInfo, MultiChoice, Note, Screen, SystemButton, Tx
 import { Steps } from '../../src/features/onboarding/Steps';
 import { useOnboarding } from '../../src/features/onboarding/store';
 import { useT } from '../../src/features/settings/store';
+import { WeekdayPicker } from '../../src/features/common/WeekdayPicker';
+import { MAX_TRAINING_DAYS, MIN_TRAINING_DAYS } from '../../src/core/engine';
 import type { Equipment, UserProfile } from '../../src/core/types';
 import type { TKey } from '../../src/core/i18n';
 
@@ -18,7 +20,8 @@ const EQUIPMENT: Equipment[] = ['band', 'dumbbell', 'pullup_bar', 'gym'];
 export default function Logistica() {
   const router = useRouter();
   const t = useT();
-  const { draft, setDraft, toggleEquipment } = useOnboarding();
+  const { draft, setDraft, toggleEquipment, trainingDays, toggleTrainingDay } = useOnboarding();
+  const daysValid = trainingDays.length >= MIN_TRAINING_DAYS && trainingDays.length <= MAX_TRAINING_DAYS;
 
   return (
     <Screen>
@@ -35,11 +38,11 @@ export default function Logistica() {
         </View>
 
         <View style={styles.block}>
-          <HudLabel tone="blue">{t('onboarding.daysPerWeek')}</HudLabel>
-          <Choice<number> value={draft.daysPerWeek}
-            onChange={(v) => setDraft({ daysPerWeek: v as UserProfile['daysPerWeek'] })}
-            options={[2, 3, 4, 5].map((n) => ({ value: n, label: String(n) }))} />
-          <Txt variant="bodySm" tone="muted">{t('onboarding.daysNote')}</Txt>
+          <HudLabel tone="blue">{t('onboarding.trainingDays')}</HudLabel>
+          <WeekdayPicker value={trainingDays} onToggle={toggleTrainingDay} />
+          <Txt variant="bodySm" tone={daysValid ? 'muted' : 'red'}>
+            {daysValid ? t('onboarding.daysNote') : t('onboarding.trainingDaysInvalid', { min: MIN_TRAINING_DAYS, max: MAX_TRAINING_DAYS })}
+          </Txt>
         </View>
 
         <View style={styles.block}>
@@ -78,7 +81,7 @@ export default function Logistica() {
             options={EQUIPMENT.map((e) => ({ value: e, label: t(`equipment.${e}` as TKey) }))} />
         </View>
 
-        <SystemButton label={t('common.continue')} onPress={() => router.push('/(onboarding)/contrato')} />
+        <SystemButton label={t('common.continue')} disabled={!daysValid} onPress={() => router.push('/(onboarding)/contrato')} />
       </ScrollView>
     </Screen>
   );

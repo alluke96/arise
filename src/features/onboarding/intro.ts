@@ -10,6 +10,8 @@ export const INTRO_DOT_MS = 170;
 export const INTRO_CYCLES = 3;
 /** Respiro depois de cada linha completa. */
 export const INTRO_LINE_PAUSE_MS = 260;
+/** Silêncio entre a última linha aparecer e o ARISE começar a surgir. */
+export const INTRO_WORDMARK_DELAY_MS = 1400;
 export const INTRO_WORDMARK_FADE_MS = 1800;
 export const INTRO_ACTIONS_FADE_MS = 800;
 
@@ -31,7 +33,14 @@ export function thinkingSteps(lines: number, cycles = INTRO_CYCLES): ThinkingSte
   return out;
 }
 
-/** Duração total até a última linha aparecer (antes dos fades). */
+/** Pausa depois da linha completa: a última segura o suspense antes do ARISE. */
+export function linePauseMs(line: number, lines: number): number {
+  return line === lines - 1 ? INTRO_WORDMARK_DELAY_MS : INTRO_LINE_PAUSE_MS;
+}
+
+/** Duração total do terminal, até o ARISE começar a surgir. */
 export function terminalDurationMs(lines: number, cycles = INTRO_CYCLES): number {
-  return lines * (cycles * 4 * INTRO_DOT_MS + INTRO_LINE_PAUSE_MS);
+  let ms = 0;
+  for (let line = 0; line < lines; line++) ms += cycles * 4 * INTRO_DOT_MS + linePauseMs(line, lines);
+  return ms;
 }

@@ -29,9 +29,47 @@ export function trainingWeekdays(daysPerWeek: number): number[] {
   return [1, 2, 3, 4, 5];
 }
 
-export function isTrainingDay(date: string, daysPerWeek: number): boolean {
-  return trainingWeekdays(daysPerWeek).includes(weekday(date));
+/** Agenda: frequência (dias espalhados pelo padrão) ou os dias escolhidos. */
+export type Schedule = number | readonly number[];
+
+export function isTrainingDay(date: string, schedule: Schedule): boolean {
+  const days = typeof schedule === 'number' ? trainingWeekdays(schedule) : schedule;
+  return days.includes(weekday(date));
 }
+
+/**
+ * Agenda em vigor em cada data, a partir dos eventos `schedule_changed`.
+ *
+ * Trocar os dias vale do dia da troca em diante; os dias anteriores seguem
+ * julgados pela agenda antiga. Sem nenhum evento (perfis antigos), vale a
+ * frequência do perfil.
+ */
+export function makeSchedule(events: DomainEvent[], fallbackDaysPerWeek: number): (date: string) => readonly number[] {
+  const changes = normalizeEvents(events)
+    .filter((e): e is DomainEvent & { kind: 'schedule_changed' } => e.kind === 'schedule_changed')
+    .map((e) => ({ from: e.at.slice(0, 10), weekdays: e.weekdays }));
+  const fallback = trainingWeekdays(fallbackDaysPerWeek);
+  return (date) => {
+    let current: readonly number[] = fallback;
+    for (const c of changes) {
+      if (c.from > date) break;
+      current = c.weekdays;
+    }
+    return current;
+  };
+}
+
+/**
+ * Sugestão inicial: 3 dias espalhados COMEÇANDO HOJE (hoje, +2, +4). Quem
+ * se cadastra num sábado não abre o app pela primeira vez num "descanse".
+ */
+export function suggestedWeekdays(today: string, count = 3): number[] {
+  const start = weekday(today);
+  return Array.from({ length: count }, (_, i) => (start + i * 2) % 7).sort((a, b) => a - b);
+}
+
+export const MIN_TRAINING_DAYS = 2;
+export const MAX_TRAINING_DAYS = 5;
 
 export function weekIndexOf(startedAt: string, today: string): number {
   return Math.max(0, Math.floor(daysBetween(startedAt, today) / 7));
@@ -111,6 +149,7 @@ export function reconcile(input: ReconcileInput): Reconciliation {
 
   // 2. O que já resolve cada dia.
   const all = normalizeEvents([...events, ...toAppend]);
+  const scheduleOn = makeSchedule(all, daysPerWeek);
   const completed = new Set<string>();
   const penaltyDone = new Set<string>();
   const stoneUsed = new Set<string>();
@@ -159,7 +198,7 @@ export function reconcile(input: ReconcileInput): Reconciliation {
   // O próprio dia do cadastro não gera penalidade: quem se cadastra às 23h
   // não deveria abrir o app no dia seguinte já em dívida.
   for (let d = addDays(startedAt, 1); d <= yesterday; d = addDays(d, 1)) {
-    if (!isTrainingDay(d, daysPerWeek) && !completed.has(d)) continue;
+    if (!isTrainingDay(d, scheduleOn(d)) && !completed.has(d)) continue;
 
     if (completed.has(d) || penaltyDone.has(d)) {
       run = [];

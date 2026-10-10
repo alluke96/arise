@@ -95,6 +95,8 @@ export default function Laboratorio() {
             onPress={nextDay} />
           <SystemButton label={t('lab.skipWeek')} variant="ghost" height={46} disabled={busy} onPress={skipWeek} />
           <Txt variant="bodySm" tone="muted">{t('lab.clockNote')}</Txt>
+          <SystemButton label={t('lab.replayIntro')} variant="ghost" height={46}
+            onPress={() => router.push('/(onboarding)/despertar')} />
         </Section>
 
         <Choice<Tab> value={tab} onChange={setTab} options={[

@@ -7,7 +7,7 @@ import { useSettings, useT } from '../../src/features/settings/store';
 import { useHunter } from '../../src/features/hunter/store';
 import { importFromFile } from '../../src/features/backup/files';
 import {
-  INTRO_ACTIONS_FADE_MS, INTRO_DOT_MS, INTRO_LINE_PAUSE_MS, INTRO_WORDMARK_FADE_MS,
+  INTRO_ACTIONS_FADE_MS, INTRO_DOT_MS, INTRO_WORDMARK_FADE_MS, linePauseMs,
   thinkingSteps, type ThinkingStep,
 } from '../../src/features/onboarding/intro';
 
@@ -17,6 +17,8 @@ export default function Despertar() {
   const router = useRouter();
   const t = useT();
   const [restoring, setRestoring] = useState(false);
+  // Já cadastrado (veio do Lab, "Rever a abertura"): só assiste e volta.
+  const replay = useHunter((st) => !!st.profile && !!st.startedAt);
 
   // ── Abertura animada ────────────────────────────────────────────────────
   // As linhas do terminal "pensam" uma a uma; depois o ARISE surge num fade
@@ -71,7 +73,7 @@ export default function Despertar() {
           if (stop()) return;
           setThinking(null);
           setDone(steps[i].line + 1);
-          await wait(INTRO_LINE_PAUSE_MS);
+          await wait(linePauseMs(steps[i].line, LINES.length));
         }
       }
       if (stop()) return;
@@ -163,9 +165,11 @@ export default function Despertar() {
 
         <Animated.View style={[styles.actions, { opacity: actions }]} pointerEvents={actionsReady ? 'auto' : 'none'}>
           <SystemButton label={t('common.accept')} icon={<IconArrow />}
-            onPress={() => router.push('/(onboarding)/biometria')} />
-          <SystemButton label={restoring ? '…' : t('onboarding.restoreBackup')} variant="ghost" height={52}
-            disabled={restoring} onPress={restore} />
+            onPress={() => (replay ? router.back() : router.push('/(onboarding)/biometria'))} />
+          {!replay && (
+            <SystemButton label={restoring ? '…' : t('onboarding.restoreBackup')} variant="ghost" height={52}
+              disabled={restoring} onPress={restore} />
+          )}
           <Txt variant="bodySm" tone="muted" style={styles.legal}>{t('onboarding.medicalDisclaimer')}</Txt>
         </Animated.View>
       </View>

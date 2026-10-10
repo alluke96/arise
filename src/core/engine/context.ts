@@ -3,7 +3,7 @@ import { foldAll } from '../sync/fold';
 import type {
   DailyQuest, Exercise, HealthScreening, PainLogEntry, Pattern, UserProfile,
 } from '../types';
-import { addDays, isTrainingDay, weekIndexOf } from './calendar';
+import { addDays, isTrainingDay, makeSchedule, weekIndexOf } from './calendar';
 import { foldLadder } from './ladder';
 import type { QuestInput } from './quest';
 import { loadFactor, type WeeklyReference } from './scaling';
@@ -108,6 +108,6 @@ export function buildQuestInput(src: QuestSources): QuestInput {
     sleepHours: src.sleepHours ?? 7,
     soreness: sorenessFrom(src.pain, src.today),
     consecutiveFailures: consecutiveFailures(src.quests, src.today),
-    isTrainingDay: isTrainingDay(src.today, src.profile.daysPerWeek),
+    isTrainingDay: isTrainingDay(src.today, makeSchedule(src.events, src.profile.daysPerWeek)(src.today)),
   };
 }

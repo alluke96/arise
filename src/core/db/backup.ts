@@ -122,6 +122,9 @@ export interface RestoreReport {
  * numa versão anterior desta função. Só entram como evento sintético quando
  * o backup não traz o evento correspondente (formato antigo).
  */
+/** Eventos que uma instalação nova cria no onboarding e que o backup substitui. */
+const REPLACE_ON_RESTORE = new Set(['placement', 'schedule:start']);
+
 export async function restoreBundle(
   repos: Repositories, bundle: ExportBundle,
 ): Promise<RestoreReport> {
@@ -131,8 +134,9 @@ export async function restoreBundle(
   // O posicionamento ORIGINAL vence o de uma instalação nova: sem isso, o
   // "Rank E de hoje" do onboarding novo entrava depois de todo o histórico e
   // derrubava o rank conquistado.
+  // Mesma lógica para a agenda inicial (`schedule:start`).
   for (const e of bundle.events) {
-    if (e.id === 'placement') await repos.events.replace(e);
+    if (REPLACE_ON_RESTORE.has(e.id)) await repos.events.replace(e);
     else await repos.events.append(e);
   }
 

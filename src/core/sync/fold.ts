@@ -128,6 +128,7 @@ export function foldAll(
       case 'shadow_unlocked':
       case 'pain_logged':
       case 'exercise_adjusted':
+      case 'schedule_changed':
         // Não afetam a progressão; foldados em outras projeções.
         break;
     }
