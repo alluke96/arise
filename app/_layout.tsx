@@ -62,6 +62,9 @@ export default function RootLayout() {
     Barlow_400Regular, Barlow_500Medium, Barlow_600SemiBold,
   });
   const { width } = useWindowDimensions();
+  const loggedIn = useAuth((st) => st.loggedIn);
+  /** Fora do build de teste não há login: tudo liberado. */
+  const signedIn = !TEST_BUILD || loggedIn;
   const [booted, setBooted] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
 
@@ -117,7 +120,27 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: color.bg },
           animation: 'fade',
         }}
-      />
+      >
+        <Stack.Screen name="index" />
+        {/* Build de teste: TODA rota além da entrada e do login exige login.
+            Antes só "/" e as abas checavam, e /ajustes, /laboratorio,
+            /sessao… abriam direto por link. Sem login, o Router manda para
+            a entrada, que manda para o login. */}
+        <Stack.Protected guard={!signedIn}>
+          <Stack.Screen name="login" />
+        </Stack.Protected>
+        <Stack.Protected guard={signedIn}>
+          <Stack.Screen name="(onboarding)" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="sessao" />
+          <Stack.Screen name="levelup" />
+          <Stack.Screen name="penalidade" />
+          <Stack.Screen name="reavaliacao" />
+          <Stack.Screen name="ajustes" />
+          <Stack.Screen name="laboratorio" />
+          <Stack.Screen name="paywall" />
+        </Stack.Protected>
+      </Stack>
     </SafeAreaProvider>
   );
 
@@ -140,7 +163,7 @@ const WEB_COLUMN = 440;
 const styles = StyleSheet.create({
   webStage: {
     flex: 1, alignItems: 'center', backgroundColor: color.bgDeep,
-    // @ts-expect-error — propriedade só da web: halo roxo atrás da coluna.
+    // Halo roxo atrás da coluna (o estágio só existe na web).
     backgroundImage: 'radial-gradient(ellipse at 50% 20%, rgba(124,58,237,0.22), rgba(9,4,26,0) 60%)',
   },
   webColumn: {

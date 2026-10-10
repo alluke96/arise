@@ -5,7 +5,7 @@
  *   node scripts/build-web.mjs [saída=docs/app]
  *
  * Publicado pelo GitHub Pages a partir de `docs/` desta branch:
- * https://alluke96.github.io/arise/app/ (o baseUrl do app.json é /arise/app).
+ * https://alluke96.github.io/arise/app/ (baseUrl /arise/app, aplicado pelo app.config.js com ARISE_WEB=1).
  *
  * 1. `expo export -p web` (com o baseUrl do app.json, ex.: /arise).
  * 2. Copia o SQLite WebAssembly (sql.js) para /vendor.
@@ -33,7 +33,7 @@ const walk = walkFiles;
 
 rmSync(out, { recursive: true, force: true });
 execFileSync('npx', ['expo', 'export', '--platform', 'web', '--output-dir', out], {
-  cwd: root, stdio: 'inherit', env: { ...process.env, EXPO_PUBLIC_DEMO: '0' },
+  cwd: root, stdio: 'inherit', env: { ...process.env, EXPO_PUBLIC_DEMO: '0', ARISE_WEB: '1' },
 });
 
 // O Expo põe fontes e imagens em assets/node_modules/... — e o .gitignore

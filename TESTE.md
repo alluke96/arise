@@ -76,6 +76,37 @@ Cuidados importantes:
 Atualizar o site depois de mudar o código: `npm run build:web` e commit da
 pasta `docs/`.
 
+### iPhone pelo Expo Go (precisa do computador)
+
+O Expo Go roda o app nativo de verdade (com notificações), mas **carrega o
+código do seu computador**: o computador precisa estar com o servidor ligado
+sempre que o Expo Go abrir o app do zero. Para semanas sem depender disso, use
+o app da Tela de Início acima.
+
+No computador (uma vez):
+
+```bash
+git clone https://github.com/alluke96/arise.git
+cd arise
+git checkout claude/arise-teste-pessoal
+npm install
+```
+
+Toda vez que for usar:
+
+```bash
+npx expo start            # iPhone na mesma rede Wi-Fi do computador
+npx expo start --tunnel   # se estiver em redes diferentes
+```
+
+No iPhone: instale o **Expo Go** (App Store), abra a **Câmera**, aponte para o
+QR code do terminal e toque no aviso. Login: `admin` / `admin`.
+
+- Os dados ficam dentro do Expo Go, separados do app da Tela de Início. Para
+  levar de um para o outro: Ajustes → Exportar, e "Já tenho um backup" no outro.
+- O Expo Go da App Store precisa ser do SDK 57. Se ele atualizar para um SDK
+  mais novo e o projeto parar de abrir, me avise que eu atualizo o projeto.
+
 ## Seu progresso
 
 - **Tudo é gravado na hora**: cada repetição tocada, cada segundo do

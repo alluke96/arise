@@ -48,8 +48,7 @@
       ]
     ],
     "experiments": {
-      "typedRoutes": true,
-      "baseUrl": "/arise/app"
+      "typedRoutes": true
     }
   }
 }
