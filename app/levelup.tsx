@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics';
+import { haptic } from '../src/ui/haptics';
 import {
   HudLabel, IconShield, IconStar, Screen, SystemButton, SystemWindow, Txt, color, font, space,
 } from '../src/ui';
@@ -23,7 +23,7 @@ export default function LevelUp() {
 
   const leveled = (c?.levelsGained ?? 0) > 0;
   useEffect(() => {
-    if (c) void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (c) haptic.success();
   }, [c]);
 
   if (!c) {

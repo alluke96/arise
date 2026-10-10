@@ -48,7 +48,9 @@ export function SystemWindow({
       onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
     >
       {size.w > 0 && (
-        <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+        // Largura e altura EXPLÍCITAS: na web um <svg> sem tamanho fica com
+        // 300×150 (padrão do navegador) e a janela aparecia cortada.
+        <Svg width={size.w} height={size.h} style={StyleSheet.absoluteFill} pointerEvents="none">
           <Polygon
             points={points(size.w, size.h, chamfer)}
             fill={FILL[variant]}

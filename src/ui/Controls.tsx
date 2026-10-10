@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   headerTitle: { flex: 1, fontSize: 19 },
   choice: { flexDirection: 'row', gap: 8 },
   choiceWrap: { flexWrap: 'wrap' },
-  pill: { minHeight: 46, paddingHorizontal: 10, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  pill: { minHeight: 46, paddingHorizontal: 6, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   pillText: { fontFamily: font.displayMedium, fontSize: 13, textAlign: 'center' },
   pillOn: { backgroundColor: color.purple, borderColor: color.purpleLight },
   pillRed: { backgroundColor: color.red, borderColor: color.redText },

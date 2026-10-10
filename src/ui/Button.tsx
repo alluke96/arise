@@ -1,6 +1,6 @@
 import { type ReactNode, useState } from 'react';
 import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { haptic } from './haptics';
 import Svg, { Polygon } from 'react-native-svg';
 import { Txt } from './Text';
 import { TOUCH_MIN, color } from './tokens';
@@ -42,7 +42,7 @@ export function SystemButton({
       accessibilityState={{ disabled: !!disabled }}
       disabled={disabled}
       onPress={() => {
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        haptic.impact('medium');
         onPress?.();
       }}
       onLayout={(e) => setW(e.nativeEvent.layout.width)}
@@ -56,7 +56,7 @@ export function SystemButton({
       ]}
     >
       {w > 0 && (
-        <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Svg width={w} height={h} style={StyleSheet.absoluteFill} pointerEvents="none">
           <Polygon
             points={`${c},0 ${w},0 ${w},${h - c} ${w - c},${h} 0,${h} 0,${c}`}
             fill={BG[variant]}

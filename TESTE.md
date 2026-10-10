@@ -24,6 +24,8 @@ Tudo isso sai de uma constante: `TEST_BUILD` em `src/core/config.ts`.
 
 ## Instalar no celular — 100% offline
 
+No iPhone, vá direto para [iPhone](#iphone-grátis-sem-mac-sem-conta-apple-paga).
+
 O Expo Go **não** serve para semanas de uso: ele carrega o código do seu
 computador e não abre sem ele. Para usar offline, instale o app de verdade.
 Nada no app usa internet: o histórico fica no SQLite do aparelho.
@@ -43,11 +45,36 @@ instale (o Android pede para permitir "instalar apps desta fonte").
   com a mesma chave, então o histórico continua. Desinstalar apaga tudo.
 - A primeira vez, o EAS pergunta se pode gerar a chave de assinatura: aceite.
 
-### iPhone
+### iPhone (grátis, sem Mac, sem conta Apple paga)
 
-Instalar fora da App Store exige conta paga de desenvolvedor Apple
-(`npx eas-cli build --profile teste --platform ios`, distribuição interna) ou
-um Mac com Xcode. Sem isso, a opção é o Android.
+O Arise roda como **app da Tela de Início** (PWA): mesmo app, mesmo motor,
+mesmo SQLite — compilado para WebAssembly e gravado no armazenamento do iPhone.
+Depois de instalado, **abre e funciona sem internet**.
+
+**Uma vez só (no computador):** GitHub → repositório `arise` → Settings →
+Pages → *Build and deployment* → Source: **Deploy from a branch** → Branch:
+`claude/arise-teste-pessoal`, pasta **`/docs`** → Save. Em ~1 minuto o app fica
+em **https://alluke96.github.io/arise/app/**.
+
+**No iPhone:**
+
+1. Abra o link no **Safari** (não no Chrome).
+2. Toque em **Compartilhar** → **Adicionar à Tela de Início** → Adicionar.
+3. Abra pelo **ícone** e só então faça o login e o onboarding.
+
+Cuidados importantes:
+
+- **Use sempre pelo ícone.** O app do ícone tem armazenamento próprio,
+  separado do Safari: o que for feito numa aba do Safari não aparece no ícone.
+- **Apagar o ícone apaga os dados.** Exporte o backup toda semana (Ajustes →
+  Exportar meus dados → Salvar em Arquivos / mandar por e-mail).
+- **Sem notificações** no iPhone por esse caminho: o Safari não agenda aviso
+  local sem servidor. Abra o app no seu horário.
+- **Versão nova:** eu publico; o app baixa sozinho quando abrir com internet e
+  passa a usar na abertura seguinte. Seus dados não são tocados.
+
+Atualizar o site depois de mudar o código: `npm run build:web` e commit da
+pasta `docs/`.
 
 ## Seu progresso
 

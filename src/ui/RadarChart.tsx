@@ -1,6 +1,6 @@
 import Svg, { Circle, Line, Polygon, Text as SvgText } from 'react-native-svg';
 import type { Attribute } from '../core/types';
-import { color } from './tokens';
+import { color, font } from './tokens';
 
 const AXES: { key: Attribute; label: string }[] = [
   { key: 'STR', label: 'FOR' }, { key: 'AGI', label: 'AGI' },
@@ -11,8 +11,11 @@ const AXES: { key: Attribute; label: string }[] = [
 export function RadarChart({
   values, size = 128, labels,
 }: { values: Record<Attribute, number>; size?: number; labels?: string[] }) {
-  const cx = size / 2;
-  const cy = size / 2 + 2;
+  // Margem para os rótulos: na web o SVG corta o que passa da borda
+  // ("INT" virava "NT").
+  const pad = 14;
+  const cx = size / 2 + pad;
+  const cy = size / 2 + 2 + pad;
   const r = size * 0.4;
 
   const point = (i: number, ratio: number) => {
@@ -27,7 +30,7 @@ export function RadarChart({
   ).join(' ');
 
   return (
-    <Svg width={size} height={size + 8} accessibilityLabel="Radar de atributos">
+    <Svg width={size + pad * 2} height={size + 8 + pad * 2} accessibilityLabel="Radar de atributos">
       {[1, 0.66, 0.33].map((rr) => (
         <Polygon key={rr} points={ring(rr)} fill="none"
           stroke={color.purpleLight} strokeOpacity={0.22} strokeWidth={1} />
@@ -47,7 +50,7 @@ export function RadarChart({
         const [x, y] = point(i, 1.22);
         return (
           <SvgText key={a.label} x={x} y={y + 3} fill={color.textDim}
-            fontSize={9} textAnchor="middle">
+            fontSize={9} fontFamily={font.displayMedium} textAnchor="middle">
             {labels?.[i] ?? a.label}
           </SvgText>
         );

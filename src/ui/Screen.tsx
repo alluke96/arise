@@ -26,7 +26,7 @@ export function Screen({
 
   return (
     <View style={[styles.root, { backgroundColor: bg }]}>
-      <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
         <Defs>
           <RadialGradient id="halo" cx="50%" cy={halo.cy} rx="80%" ry="46%">
             <Stop offset="0" stopColor={halo.c} stopOpacity={halo.opacity} />

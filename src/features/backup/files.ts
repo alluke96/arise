@@ -7,16 +7,8 @@ import {
 import { repositories } from '../../core/repositories';
 import { nowISO } from '../../core/clock';
 
-/** Quando o último backup foi exportado (ISO). Ausente = nunca. */
-export const LAST_BACKUP_KEY = 'last_backup_at';
-/** A partir de quantos dias sem backup o app lembra. */
-export const BACKUP_REMIND_DAYS = 7;
-
-/** Dias desde o último backup; null = nunca exportou. */
-export function daysSinceBackup(lastIso: string | null, nowIso: string): number | null {
-  if (!lastIso) return null;
-  return Math.max(0, Math.floor((Date.parse(nowIso) - Date.parse(lastIso)) / 86_400_000));
-}
+export { BACKUP_REMIND_DAYS, LAST_BACKUP_KEY, daysSinceBackup } from './common';
+import { LAST_BACKUP_KEY } from './common';
 
 /**
  * Exportação e importação em arquivo (R12.4, R12.5).
@@ -24,7 +16,7 @@ export function daysSinceBackup(lastIso: string | null, nowIso: string): number 
  * A lógica — montar, validar, restaurar por união — é pura e testada em
  * `core/db/backup.ts`. Aqui só se lê e escreve arquivo.
  */
-export async function exportToFile(): Promise<{ events: number; bytes: number }> {
+export async function exportToFile(): Promise<{ events: number; bytes: number } | null> {
   const quests = await repositories.quests.between('1970-01-01', '9999-12-31');
   const bundle = await buildBundle(repositories, new Date().toISOString(), quests);
   const json = serializeBundle(bundle);

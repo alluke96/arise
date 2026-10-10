@@ -14,6 +14,8 @@ Notifications.setNotificationHandler({
   }),
 });
 
+export const NOTIFICATIONS_SUPPORTED = true;
+
 /** R1.12 — pedida ao fim do onboarding, com contexto, nunca na abertura. */
 export async function requestNotificationPermission(): Promise<boolean> {
   const current = await Notifications.getPermissionsAsync();

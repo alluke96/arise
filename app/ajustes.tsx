@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { showAlert } from '../src/ui/alert';
 import { useRouter } from 'expo-router';
 import {
   Choice, Header, HudLabel, IconInfo, IconLock, Note, Row, Screen, Section, SystemButton,
@@ -13,7 +14,7 @@ import {
 } from '../src/features/backup/files';
 import { repositories } from '../src/core/repositories';
 import { nowISO } from '../src/core/clock';
-import { syncNotifications } from '../src/features/notifications/adapter';
+import { NOTIFICATIONS_SUPPORTED, syncNotifications } from '../src/features/notifications/adapter';
 import { LOCALES, LOCALE_LABEL, formatLength, formatMass, type TKey } from '../src/core/i18n';
 import type { NotificationPrefs } from '../src/core/notifications/schedule';
 import { TEST_BUILD } from '../src/core/config';
@@ -62,12 +63,13 @@ export default function Ajustes() {
     setBusy('export');
     try {
       const r = await exportToFile();
+      if (!r) return; // fechou a folha de compartilhar sem salvar
       setBackupDays(0);
-      Alert.alert(t('settings.exportDone'), t('settings.exportSummary', {
+      showAlert(t('settings.exportDone'), t('settings.exportSummary', {
         events: r.events, kb: Math.max(1, Math.round(r.bytes / 1024)),
       }));
     } catch {
-      Alert.alert(t('settings.exportData'), t('settings.fileError'));
+      showAlert(t('settings.exportData'), t('settings.fileError'));
     } finally {
       setBusy(null);
     }
@@ -80,18 +82,18 @@ export default function Ajustes() {
       if (!report) return;
       await h.boot();
       await useSettings.getState().hydrate(useHunter.getState().profile, locale);
-      Alert.alert(t('settings.importDone'), t('settings.importSummary', {
+      showAlert(t('settings.importDone'), t('settings.importSummary', {
         events: report.events, quests: report.quests,
       }));
     } catch (e) {
-      Alert.alert(t('settings.importData'), `${t('settings.importInvalid')}\n\n${e instanceof Error ? e.message : ''}`);
+      showAlert(t('settings.importData'), `${t('settings.importInvalid')}\n\n${e instanceof Error ? e.message : ''}`);
     } finally {
       setBusy(null);
     }
   };
 
   const onInjury = (value: boolean) => {
-    Alert.alert(
+    showAlert(
       t(value ? 'settings.injuryOnTitle' : 'settings.injuryOffTitle'),
       t(value ? 'settings.injuryOnBody' : 'settings.injuryOffBody'),
       [
@@ -102,7 +104,7 @@ export default function Ajustes() {
   };
 
   const onWipe = () => {
-    Alert.alert(t('settings.deleteAccount'), t('settings.deleteConfirm'), [
+    showAlert(t('settings.deleteAccount'), t('settings.deleteConfirm'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('settings.deleteAction'), style: 'destructive',
@@ -169,6 +171,10 @@ export default function Ajustes() {
         </Section>
 
         <Section label={t('settings.notifications')}>
+          {!NOTIFICATIONS_SUPPORTED ? (
+            <Txt variant="bodySm" tone="dim">{t('settings.notifWebUnsupported')}</Txt>
+          ) : (
+          <>
           <Toggle label={t('settings.notifEnabled')} value={notifications.enabled}
             onChange={(enabled) => updateNotifications({ enabled })} />
           {notifications.enabled && (
@@ -183,6 +189,8 @@ export default function Ajustes() {
             </>
           )}
           <Txt variant="bodySm" tone="muted">{t('settings.notifCap')}</Txt>
+          </>
+          )}
         </Section>
 
         <Section label={t('settings.health')}>

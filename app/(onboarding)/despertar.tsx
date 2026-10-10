@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { showAlert } from '../../src/ui/alert';
 import { useRouter } from 'expo-router';
 import { HudLabel, IconArrow, Screen, SystemButton, Txt, color, space } from '../../src/ui';
 import { useSettings, useT } from '../../src/features/settings/store';
@@ -18,15 +19,15 @@ export default function Despertar() {
       const report = await importFromFile();
       if (!report) return;
       if (!report.profileRestored) {
-        Alert.alert(t('settings.importData'), t('onboarding.restoreNoProfile'));
+        showAlert(t('settings.importData'), t('onboarding.restoreNoProfile'));
         return;
       }
       await useHunter.getState().boot();
       await useSettings.getState().hydrate(useHunter.getState().profile, useSettings.getState().locale);
-      Alert.alert(t('settings.importDone'), t('settings.importSummary', { events: report.events, quests: report.quests }));
+      showAlert(t('settings.importDone'), t('settings.importSummary', { events: report.events, quests: report.quests }));
       router.replace('/');
     } catch (e) {
-      Alert.alert(t('settings.importData'), `${t('settings.importInvalid')}\n\n${e instanceof Error ? e.message : ''}`);
+      showAlert(t('settings.importData'), `${t('settings.importInvalid')}\n\n${e instanceof Error ? e.message : ''}`);
     } finally {
       setRestoring(false);
     }

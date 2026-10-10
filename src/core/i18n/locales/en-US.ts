@@ -300,6 +300,7 @@ export const enUS: Translations = {
     notifDeadline: 'Deadline warnings',
     notifCompletion: 'Completion confirmation',
     notifCap: 'At most 3 per day, always.',
+    notifWebUnsupported: 'In the iPhone home-screen app the browser cannot schedule notifications. Open the app at your training time.',
     injury: 'I am injured',
     injuryNote: 'Freezes your streak without penalty while you recover.',
     injuryOnTitle: 'Declare an injury?',

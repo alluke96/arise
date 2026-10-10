@@ -299,6 +299,7 @@ export const ptBR = {
     notifDeadline: 'Avisos de prazo',
     notifCompletion: 'Confirmação de conclusão',
     notifCap: 'No máximo 3 por dia, sempre.',
+    notifWebUnsupported: 'No app do iPhone (Tela de Início) o navegador não agenda notificações. Abra o app no seu horário de treino.',
     injury: 'Estou lesionado',
     injuryNote: 'Congela a sequência sem penalidade enquanto você se recupera.',
     injuryOnTitle: 'Declarar lesão?',

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { showAlert } from '../src/ui/alert';
 import { useRouter } from 'expo-router';
 import {
   Choice, Header, HudLabel, IconInfo, Note, Row, Screen, Section, SystemButton, SystemWindow, Txt,
@@ -63,7 +64,7 @@ export default function Laboratorio() {
   // Em uso real, as três ações abaixo mexem no histórico de verdade e não têm
   // volta: sempre pedem confirmação.
   const confirm = (title: string, body: string, action: () => Promise<unknown>) =>
-    Alert.alert(title, body, [
+    showAlert(title, body, [
       { text: t('common.cancel'), style: 'cancel' },
       { text: t('common.confirm'), style: 'destructive', onPress: () => void run(action) },
     ]);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -15,7 +15,7 @@ import {
 import { useFonts } from 'expo-font';
 import { color } from '../src/ui/tokens';
 import { newId, setDeviceId, setIdGenerator } from '../src/core/ids';
-import { repositories } from '../src/core/repositories';
+import { initRepositories, repositories } from '../src/core/repositories';
 import { resolveLocale } from '../src/core/i18n';
 import { loadClockOffset, useHunter } from '../src/features/hunter/store';
 import { useAuth } from '../src/features/auth/store';
@@ -33,6 +33,8 @@ setIdGenerator(() => Crypto.randomUUID());
  * perfil, reconciliação do calendário e missão do dia.
  */
 async function bootApp() {
+  // Na web o banco vem do IndexedDB: abre antes de qualquer leitura.
+  await initRepositories();
   let deviceId = await repositories.app.getValue('device_id');
   if (!deviceId) {
     deviceId = newId();
@@ -60,9 +62,12 @@ export default function RootLayout() {
     Barlow_400Regular, Barlow_500Medium, Barlow_600SemiBold,
   });
   const [booted, setBooted] = useState(false);
+  const [bootError, setBootError] = useState<string | null>(null);
 
   useEffect(() => {
-    bootApp().finally(() => setBooted(true));
+    bootApp()
+      .catch((e: unknown) => setBootError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setBooted(true));
   }, []);
 
   const ready = fontsLoaded && booted;
@@ -90,6 +95,17 @@ export default function RootLayout() {
   }, [ready]);
 
   if (!ready) return null;
+
+  // Sem banco não há app: melhor dizer o porquê do que abrir telas que vão
+  // falhar ao gravar.
+  if (bootError) {
+    return (
+      <View style={{ flex: 1, backgroundColor: color.bg, justifyContent: 'center', padding: 28 }}>
+        <Text style={{ color: color.redText, fontSize: 16, marginBottom: 8 }}>Não foi possível abrir os dados do Arise.</Text>
+        <Text style={{ color: color.textDim, fontSize: 13 }}>{bootError}</Text>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaProvider>

@@ -1,4 +1,5 @@
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { showAlert } from '../../src/ui/alert';
 import { useRouter } from 'expo-router';
 import {
   HudLabel, IconCheck, IconClock, Screen, StatBar, SystemButton, SystemWindow, Txt, color, font, space,
@@ -35,7 +36,7 @@ export default function MissaoScreen() {
     if (c) router.push('/levelup');
   };
 
-  const endDay = () => Alert.alert(t('quest.endSession'), t('quest.endSessionNote'), [
+  const endDay = () => showAlert(t('quest.endSession'), t('quest.endSessionNote'), [
     { text: t('common.cancel'), style: 'cancel' },
     { text: t('quest.endSession'), onPress: () => { void finish(); } },
   ]);

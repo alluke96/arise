@@ -29,7 +29,12 @@
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/favicon.png"
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "name": "Arise",
+      "shortName": "Arise",
+      "themeColor": "#0C0618",
+      "backgroundColor": "#0C0618"
     },
     "plugins": [
       "expo-router",
@@ -43,7 +48,8 @@
       ]
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "baseUrl": "/arise/app"
     }
   }
 }

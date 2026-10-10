@@ -135,7 +135,7 @@ export default function StatusScreen() {
           <View style={styles.divider} />
 
           <View style={styles.attrRow}>
-            <RadarChart values={progression.attributes} size={128}
+            <RadarChart values={progression.attributes} size={104}
               labels={ATTRS.map((a) => t(`status.attributesShort.${a}` as TKey))} />
             <View style={styles.attrList}>
               {ATTRS.map((k) => (

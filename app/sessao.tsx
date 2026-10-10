@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AppState, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics';
+import { haptic } from '../src/ui/haptics';
 import {
   Choice, HudLabel, RepCounter, Screen, SystemButton, SystemWindow, Txt, TOUCH_MIN, color, font, space,
 } from '../src/ui';
@@ -114,10 +114,11 @@ export default function Sessao() {
   useEffect(() => {
     if (!objective || timed) return;
     const finishedSets = Math.floor(objective.actualValue / setSize);
-    if (finishedSets > lastSetRef.current && finishedSets < sets) {
+    // Exercício já completo (ex.: "Marcar como feito") não pede descanso.
+    if (finishedSets > lastSetRef.current && finishedSets < sets && objective.actualValue < objective.targetValue) {
       setRestEndsAt(Date.now() + program.restSeconds * 1000);
       setNowTick(Date.now());
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
     }
     lastSetRef.current = finishedSets;
   }, [objective?.actualValue]); // eslint-disable-line react-hooks/exhaustive-deps

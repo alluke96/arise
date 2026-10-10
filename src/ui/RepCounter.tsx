@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, View } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { haptic } from './haptics';
 import Svg, { Polygon } from 'react-native-svg';
 import { useState } from 'react';
 import { Txt } from './Text';
@@ -30,7 +30,7 @@ export function RepCounter({
       accessibilityLabel={`${accessibilityPrefix}. ${value} ${ofLabel} ${target} ${unit}`}
       accessibilityValue={{ min: 0, max: target, now: value }}
       onPress={() => {
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        haptic.impact('heavy');
         onIncrement();
       }}
       onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
