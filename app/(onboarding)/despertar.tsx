@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   mono: { fontSize: 14, letterSpacing: 0.6, lineHeight: 20 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 },
   wordmark: {
-    fontFamily: 'ChakraPetch_700Bold', fontSize: 56, color: '#FFFFFF',
+    fontFamily: 'ChakraPetch_700Bold', fontSize: 56, lineHeight: 68, color: '#FFFFFF',
     letterSpacing: 16, marginLeft: 16,
     textShadowColor: 'rgba(167,139,250,0.85)', textShadowRadius: 26,
   },
