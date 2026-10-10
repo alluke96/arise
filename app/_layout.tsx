@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AppState, Text, View } from 'react-native';
+import { AppState, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -61,6 +61,7 @@ export default function RootLayout() {
     ChakraPetch_500Medium, ChakraPetch_600SemiBold, ChakraPetch_700Bold,
     Barlow_400Regular, Barlow_500Medium, Barlow_600SemiBold,
   });
+  const { width } = useWindowDimensions();
   const [booted, setBooted] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
 
@@ -107,7 +108,7 @@ export default function RootLayout() {
     );
   }
 
-  return (
+  const app = (
     <SafeAreaProvider>
       <StatusBar style="light" />
       <Stack
@@ -119,4 +120,32 @@ export default function RootLayout() {
       />
     </SafeAreaProvider>
   );
+
+  // Web num monitor: o app fica numa coluna do tamanho de um celular, no
+  // centro, com o fundo preenchendo as laterais. Esticar formulário e botões
+  // por 1900 px deixava tudo desproporcional.
+  if (Platform.OS === 'web' && width > WEB_COLUMN + 40) {
+    return (
+      <View style={styles.webStage}>
+        <View style={styles.webColumn}>{app}</View>
+      </View>
+    );
+  }
+  return app;
 }
+
+/** Largura da coluna do app na web em telas grandes (um celular grande). */
+const WEB_COLUMN = 440;
+
+const styles = StyleSheet.create({
+  webStage: {
+    flex: 1, alignItems: 'center', backgroundColor: color.bgDeep,
+    // @ts-expect-error — propriedade só da web: halo roxo atrás da coluna.
+    backgroundImage: 'radial-gradient(ellipse at 50% 20%, rgba(124,58,237,0.22), rgba(9,4,26,0) 60%)',
+  },
+  webColumn: {
+    flex: 1, width: '100%', maxWidth: WEB_COLUMN, overflow: 'hidden',
+    borderLeftWidth: 1, borderRightWidth: 1, borderColor: color.line,
+    shadowColor: color.purple, shadowOpacity: 0.35, shadowRadius: 40, shadowOffset: { width: 0, height: 0 },
+  },
+});
