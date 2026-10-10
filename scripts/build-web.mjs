@@ -17,16 +17,37 @@
  */
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
 const root = new URL('..', import.meta.url).pathname;
 const out = resolve(root, process.argv[2] ?? 'docs/app');
 
+function walkFiles(dir) {
+  return readdirSync(dir).flatMap((name) => {
+    const p = join(dir, name);
+    return statSync(p).isDirectory() ? walkFiles(p) : [p];
+  });
+}
+const walk = walkFiles;
+
 rmSync(out, { recursive: true, force: true });
 execFileSync('npx', ['expo', 'export', '--platform', 'web', '--output-dir', out], {
   cwd: root, stdio: 'inherit', env: { ...process.env, EXPO_PUBLIC_DEMO: '0' },
 });
+
+// O Expo põe fontes e imagens em assets/node_modules/... — e o .gitignore
+// ignora QUALQUER pasta node_modules: os arquivos nunca chegavam ao GitHub e o
+// Pages respondia 404 (o service worker então nem instalava). Renomeia a
+// pasta e reescreve as referências no código.
+const nmFrom = join(out, 'assets', 'node_modules');
+if (existsSync(nmFrom)) {
+  renameSync(nmFrom, join(out, 'assets', 'npm'));
+  for (const f of walkFiles(out).filter((p) => /\.(js|html|json|map)$/.test(p))) {
+    const text = readFileSync(f, 'utf8');
+    if (text.includes('/assets/node_modules/')) writeFileSync(f, text.split('/assets/node_modules/').join('/assets/npm/'));
+  }
+}
 
 mkdirSync(join(out, 'vendor'), { recursive: true });
 for (const f of ['sql-wasm.js', 'sql-wasm.wasm']) {
@@ -45,12 +66,6 @@ if (out.endsWith('/docs/app')) {
     '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=./app/"><a href="./app/">Arise</a>\n');
 }
 
-function walk(dir) {
-  return readdirSync(dir).flatMap((name) => {
-    const p = join(dir, name);
-    return statSync(p).isDirectory() ? walk(p) : [p];
-  });
-}
 
 const files = walk(out)
   .map((p) => relative(out, p).split('\\').join('/'))
@@ -98,6 +113,21 @@ self.addEventListener('fetch', (event) => {
 });
 `;
 writeFileSync(join(out, 'sw.js'), sw);
+
+// Trava: nenhum arquivo do build pode estar no .gitignore, nem conter
+// "node_modules" no caminho — senão o site publicado fica incompleto.
+const bad = files.filter((f) => f.includes('node_modules'));
+if (bad.length) throw new Error(`caminho com node_modules no build: ${bad[0]}`);
+let ignored = '';
+try {
+  ignored = execFileSync('git', ['check-ignore', '--no-index', '--stdin'], {
+    cwd: root, input: files.map((f) => join(out, f)).join('\n'), encoding: 'utf8',
+  }).trim();
+} catch (e) {
+  // check-ignore sai com código 1 quando NADA é ignorado: é o caso bom.
+  if (e.status !== 1) throw e;
+}
+if (ignored) throw new Error(`arquivos do build ignorados pelo git:\n${ignored}`);
 
 const size = files.reduce((a, f) => a + statSync(join(out, f)).size, 0);
 console.log(`\nweb pronto em ${relative(root, out)}/ — ${files.length} arquivos, ${(size / 1024 / 1024).toFixed(1)} MB, versão ${version}`);
