@@ -73,6 +73,7 @@ export const enUS: Translations = {
     goalSquats: 'squats',
     goalRun: 'run',
     signalDetected: 'Signal detected',
+    introSkip: 'Tap to skip the intro',
     analyzing: 'Analyzing candidate…',
     manaCapacity: 'Mana capacity',
     notMeasurable: 'not measurable',

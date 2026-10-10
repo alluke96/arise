@@ -72,6 +72,7 @@ export const ptBR = {
     goalSquats: 'agachamentos',
     goalRun: 'corrida',
     signalDetected: 'Sinal detectado',
+    introSkip: 'Toque para pular a abertura',
     analyzing: 'Analisando candidato…',
     manaCapacity: 'Capacidade de mana',
     notMeasurable: 'não mensurável',
